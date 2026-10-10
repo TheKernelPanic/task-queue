@@ -21,6 +21,9 @@ import WorkspaceView from './WorkspaceView'
 
 type Tab = 'prompt' | 'files' | 'workspace' | 'summary' | 'history' | 'usage' | 'commit'
 
+/** Last selected tab, kept when switching to another task (the component remounts per task). */
+let lastTab: Tab = 'prompt'
+
 const ACTION_LABELS: Record<TaskStatus, string> = {
   Created: 'Creada',
   Pending: 'Encolar',
@@ -40,7 +43,7 @@ interface Props {
 }
 
 export default function TaskDetail({ task, agents, procedures, gitRepo, onOpenProcedure }: Props) {
-  const [tab, setTab] = useState<Tab>('prompt')
+  const [tab, setTabState] = useState<Tab>(lastTab)
   const [editing, setEditing] = useState(false)
   const [answer, setAnswer] = useState('')
   const [answerPaths, setAnswerPaths] = useState<string[]>([])
@@ -49,6 +52,11 @@ export default function TaskDetail({ task, agents, procedures, gitRepo, onOpenPr
   const editable = isTaskEditable(task)
   const agentName = agents.find((a) => a.id === task.agent)?.name ?? task.agent
   const currentProcedures = new Map(procedures.map((p) => [p.code, p]))
+
+  function setTab(next: Tab) {
+    lastTab = next
+    setTabState(next)
+  }
 
   async function run(action: () => Promise<unknown>) {
     setError(null)
