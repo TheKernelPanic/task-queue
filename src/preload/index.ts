@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
-import type { Task, TaskEvent, TaskQueueApi } from '@shared/types'
+import type { Task, TaskEvent, TaskQueueApi, TaskRun } from '@shared/types'
 
 function subscribe<T>(channel: string, cb: (value: T) => void): () => void {
   const listener = (_e: IpcRendererEvent, value: T) => cb(value)
@@ -29,6 +29,8 @@ const api: TaskQueueApi = {
   openPath: (path) => ipcRenderer.invoke('files:open', path),
   showInFolder: (path) => ipcRenderer.invoke('files:showInFolder', path),
   getPathForFile: (file) => webUtils.getPathForFile(file),
+  listRuns: (code) => ipcRenderer.invoke('tasks:runs', code),
+  onTaskRun: (cb) => subscribe<TaskRun>('task:run', cb),
   listEvents: (code) => ipcRenderer.invoke('tasks:events', code),
   getCommit: (code) => ipcRenderer.invoke('tasks:commit', code),
   pickPath: (kind) => ipcRenderer.invoke('dialog:pickPath', kind),

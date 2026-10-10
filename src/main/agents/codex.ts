@@ -66,6 +66,18 @@ export const codexAdapter: AgentAdapter = {
           events.push({ kind: 'command', content: `${item.server as string}.${item.tool as string}` })
           break
       }
+    } else if (msg.type === 'turn.completed') {
+      // Codex reports tokens per turn (input includes cached tokens) but no cost nor model.
+      const u = (msg.usage ?? {}) as Record<string, number>
+      const cached = u.cached_input_tokens ?? 0
+      const totals = {
+        inputTokens: (u.input_tokens ?? 0) - cached,
+        outputTokens: u.output_tokens ?? 0,
+        cacheReadTokens: cached,
+        cacheCreationTokens: 0,
+        costUsd: null
+      }
+      return { events, usage: { ...totals, models: [{ model: 'codex', ...totals }], turns: 1 } }
     } else if (msg.type === 'turn.failed' || msg.type === 'error') {
       events.push({ kind: 'error', content: JSON.stringify(msg.error ?? msg) })
     }

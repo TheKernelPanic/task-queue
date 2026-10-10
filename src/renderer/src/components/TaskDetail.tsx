@@ -12,8 +12,9 @@ import HistoryView from './HistoryView'
 import Markdown from './Markdown'
 import StatusBadge from './StatusBadge'
 import TaskForm from './TaskForm'
+import UsageView from './UsageView'
 
-type Tab = 'prompt' | 'files' | 'summary' | 'history' | 'commit'
+type Tab = 'prompt' | 'files' | 'summary' | 'history' | 'usage' | 'commit'
 
 const ACTION_LABELS: Record<TaskStatus, string> = {
   Created: 'Volver a Creada',
@@ -120,6 +121,7 @@ export default function TaskDetail({ task, agents, procedures, onOpenProcedure }
                 ['files', 'Ficheros'],
                 ['summary', 'Resumen'],
                 ['history', 'History'],
+                ['usage', 'Consumo'],
                 ['commit', 'Commit']
               ] as [Tab, string][]
             ).map(([id, label]) => (
@@ -158,6 +160,7 @@ export default function TaskDetail({ task, agents, procedures, onOpenProcedure }
             {tab === 'summary' &&
               (task.summary ? <Markdown>{task.summary}</Markdown> : <p className="muted">Sin resumen todavía.</p>)}
             {tab === 'history' && <HistoryView code={task.code} />}
+            {tab === 'usage' && <UsageView code={task.code} />}
             {tab === 'commit' && <CommitView key={task.commitHash ?? 'none'} code={task.code} />}
           </div>
         </>

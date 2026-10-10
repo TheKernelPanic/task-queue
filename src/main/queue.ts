@@ -1,8 +1,16 @@
 import { spawn, execFile, type ChildProcess } from 'node:child_process'
 import { createInterface } from 'node:readline'
-import { MANUAL_TRANSITIONS, type Task, type TaskStatus } from '@shared/types'
+import {
+  MANUAL_TRANSITIONS,
+  type ModelUsage,
+  type RunStatus,
+  type Task,
+  type TaskRun,
+  type TaskStatus
+} from '@shared/types'
 import * as db from './db'
 import { adapters, resolveAgentPath } from './agents'
+import type { UsageReport } from './agents/types'
 import { commitTask, getCommit as gitGetCommit } from './git'
 import { getMcpEndpoint } from './mcp'
 import { outputsDir, resourcesDir } from './storage'
@@ -37,6 +45,89 @@ function killTree(child: ChildProcess): void {
     execFile('taskkill', ['/pid', String(child.pid), '/T', '/F'], () => undefined)
   } else {
     child.kill('SIGTERM')
+  }
+}
+
+const sumCost = (a: number | null, b: number | null): number | null =>
+  a === null && b === null ? null : (a ?? 0) + (b ?? 0)
+
+const subCost = (a: number | null, b: number | null): number | null =>
+  a === null ? null : Math.max(0, a - (b ?? 0))
+
+/** Turns a session-cumulative report into this run's share by subtracting earlier runs of the session. */
+function sessionDelta(report: UsageReport, previous: TaskRun[]): UsageReport {
+  if (previous.length === 0) return report
+  const prevModels = new Map<string, ModelUsage>()
+  for (const run of previous) {
+    for (const m of run.models) {
+      const acc = prevModels.get(m.model)
+      prevModels.set(
+        m.model,
+        acc
+          ? {
+              model: m.model,
+              inputTokens: acc.inputTokens + m.inputTokens,
+              outputTokens: acc.outputTokens + m.outputTokens,
+              cacheReadTokens: acc.cacheReadTokens + m.cacheReadTokens,
+              cacheCreationTokens: acc.cacheCreationTokens + m.cacheCreationTokens,
+              costUsd: sumCost(acc.costUsd, m.costUsd)
+            }
+          : { ...m }
+      )
+    }
+  }
+  const prevCost = previous.reduce<number | null>((acc, r) => sumCost(acc, r.costUsd), null)
+  const prevApi = previous.reduce((acc, r) => acc + (r.apiDurationMs ?? 0), 0)
+  return {
+    ...report,
+    costUsd: subCost(report.costUsd, prevCost),
+    apiDurationMs:
+      report.apiDurationMs === undefined ? undefined : Math.max(0, report.apiDurationMs - prevApi),
+    models: report.models.map((m) => {
+      const p = prevModels.get(m.model)
+      if (!p) return m
+      return {
+        model: m.model,
+        inputTokens: Math.max(0, m.inputTokens - p.inputTokens),
+        outputTokens: Math.max(0, m.outputTokens - p.outputTokens),
+        cacheReadTokens: Math.max(0, m.cacheReadTokens - p.cacheReadTokens),
+        cacheCreationTokens: Math.max(0, m.cacheCreationTokens - p.cacheCreationTokens),
+        costUsd: subCost(m.costUsd, p.costUsd)
+      }
+    })
+  }
+}
+
+/** Adds a usage report to what the run has accumulated so far. */
+function addUsage(current: TaskRun, report: UsageReport): db.RunPatch {
+  const models = new Map<string, ModelUsage>(current.models.map((m) => [m.model, { ...m }]))
+  for (const m of report.models) {
+    const prev = models.get(m.model)
+    models.set(
+      m.model,
+      prev
+        ? {
+            model: m.model,
+            inputTokens: prev.inputTokens + m.inputTokens,
+            outputTokens: prev.outputTokens + m.outputTokens,
+            cacheReadTokens: prev.cacheReadTokens + m.cacheReadTokens,
+            cacheCreationTokens: prev.cacheCreationTokens + m.cacheCreationTokens,
+            costUsd: sumCost(prev.costUsd, m.costUsd)
+          }
+        : { ...m }
+    )
+  }
+  return {
+    inputTokens: current.inputTokens + report.inputTokens,
+    outputTokens: current.outputTokens + report.outputTokens,
+    cacheReadTokens: current.cacheReadTokens + report.cacheReadTokens,
+    cacheCreationTokens: current.cacheCreationTokens + report.cacheCreationTokens,
+    costUsd: sumCost(current.costUsd, report.costUsd),
+    models: [...models.values()],
+    durationMs: report.durationMs ?? current.durationMs,
+    apiDurationMs: report.apiDurationMs ?? current.apiDurationMs,
+    turns:
+      report.turns === undefined ? current.turns : (current.turns ?? 0) + report.turns
   }
 }
 
@@ -80,17 +171,37 @@ async function launch(task: Task): Promise<void> {
   })
   const run: RunningTask = { child, projectId: project.id, cancelled: false }
   running.set(task.code, run)
+  const runId = db.startRun(task.code, task.agent).id
+  const startedAt = Date.now()
 
   let result: string | undefined
+  let reportedError = false
   const stderr: string[] = []
 
   createInterface({ input: child.stdout! }).on('line', (line) => {
     if (!line.trim()) return
     try {
       const parsed = adapter.parseLine(line)
-      if (parsed.sessionId && parsed.sessionId !== db.getTask(task.code)?.sessionId) {
-        db.patchTask(task.code, { sessionId: parsed.sessionId })
+      if (parsed.sessionId) {
+        if (parsed.sessionId !== db.getTask(task.code)?.sessionId) {
+          db.patchTask(task.code, { sessionId: parsed.sessionId })
+        }
+        if (!db.getRun(runId)?.sessionId) db.patchRun(runId, { sessionId: parsed.sessionId })
       }
+      if (parsed.usage) {
+        reportedError ||= parsed.usage.isError === true
+        const current = db.getRun(runId)!
+        const report = parsed.usage.sessionCumulative
+          ? sessionDelta(
+              parsed.usage,
+              db
+                .listRuns(task.code)
+                .filter((r) => r.id < runId && r.sessionId && r.sessionId === current.sessionId)
+            )
+          : parsed.usage
+        db.patchRun(runId, addUsage(current, report))
+      }
+      if (parsed.rateLimit) db.patchRun(runId, { rateLimit: parsed.rateLimit })
       if (parsed.result) result = parsed.result
       for (const e of parsed.events) db.addEvent(task.code, e.kind, e.content)
     } catch {
@@ -105,6 +216,14 @@ async function launch(task: Task): Promise<void> {
 
   child.on('close', (exitCode) => {
     running.delete(task.code)
+    const status: RunStatus = run.cancelled
+      ? 'cancelled'
+      : exitCode === 0 && !reportedError
+        ? 'success'
+        : 'error'
+    // Agents that don't report duration get the wall-clock time of the process.
+    const durationMs = db.getRun(runId)?.durationMs ?? Date.now() - startedAt
+    db.patchRun(runId, { status, durationMs }, true)
     void finalize(task.code, run, exitCode, result, stderr.join('')).finally(() => void tick())
   })
 }
@@ -170,6 +289,7 @@ export async function tick(): Promise<void> {
 
 export function startQueue(): void {
   // Anything left running from a previous session cannot be reattached.
+  db.interruptRunningRuns()
   for (const task of db.listTasks()) {
     if (task.status === 'InProgress') {
       db.addEvent(task.code, 'error', 'TaskQueue was closed while the task was running')

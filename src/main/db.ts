@@ -6,9 +6,11 @@ import type {
   Procedure,
   ProcedureInput,
   Project,
+  RunStatus,
   Task,
   TaskEvent,
   TaskEventKind,
+  TaskRun,
   TaskStatus,
   TaskUpdate
 } from '@shared/types'
@@ -16,7 +18,7 @@ import type {
 const TASK_PREFIX = 'DK'
 const PROCEDURE_PREFIX = 'PR'
 
-/** Emits 'task' (Task) and 'event' (TaskEvent) whenever data changes. */
+/** Emits 'task' (Task), 'event' (TaskEvent) and 'run' (TaskRun) whenever data changes. */
 export const bus = new EventEmitter()
 
 let db: DatabaseSync
@@ -85,6 +87,28 @@ export function openDatabase(file: string): void {
       project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
       PRIMARY KEY (procedure_code, project_id)
     );
+
+    CREATE TABLE IF NOT EXISTS task_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      task_code TEXT NOT NULL REFERENCES tasks(code) ON DELETE CASCADE,
+      agent TEXT NOT NULL,
+      session_id TEXT,
+      status TEXT NOT NULL DEFAULT 'running',
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      finished_at TEXT,
+      duration_ms INTEGER,
+      api_duration_ms INTEGER,
+      turns INTEGER,
+      input_tokens INTEGER NOT NULL DEFAULT 0,
+      output_tokens INTEGER NOT NULL DEFAULT 0,
+      cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+      cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+      cost_usd REAL,
+      models TEXT NOT NULL DEFAULT '[]',
+      rate_limit TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_task_runs_task ON task_runs(task_code, id);
 
     CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_code, id);
   `)
@@ -380,6 +404,92 @@ export function deleteProcedure(code: string): void {
     throw new Error(`${code} está referenciado por: ${users.join(', ')}`)
   }
   db.prepare('DELETE FROM procedures WHERE code = ?').run(code)
+}
+
+// ---- Runs ----
+
+function toRun(r: Row): TaskRun {
+  return {
+    id: r.id as number,
+    taskCode: r.task_code as string,
+    agent: r.agent as TaskRun['agent'],
+    sessionId: (r.session_id as string) ?? null,
+    status: r.status as RunStatus,
+    startedAt: r.started_at as string,
+    finishedAt: (r.finished_at as string) ?? null,
+    durationMs: (r.duration_ms as number) ?? null,
+    apiDurationMs: (r.api_duration_ms as number) ?? null,
+    turns: (r.turns as number) ?? null,
+    inputTokens: r.input_tokens as number,
+    outputTokens: r.output_tokens as number,
+    cacheReadTokens: r.cache_read_tokens as number,
+    cacheCreationTokens: r.cache_creation_tokens as number,
+    costUsd: (r.cost_usd as number) ?? null,
+    models: JSON.parse(r.models as string),
+    rateLimit: r.rate_limit ? JSON.parse(r.rate_limit as string) : null
+  }
+}
+
+export function getRun(id: number): TaskRun | null {
+  const r = db.prepare('SELECT * FROM task_runs WHERE id = ?').get(id) as Row | undefined
+  return r ? toRun(r) : null
+}
+
+export function listRuns(taskCode: string): TaskRun[] {
+  return (
+    db.prepare('SELECT * FROM task_runs WHERE task_code = ? ORDER BY id').all(taskCode) as Row[]
+  ).map(toRun)
+}
+
+export function startRun(taskCode: string, agent: TaskRun['agent']): TaskRun {
+  const r = db
+    .prepare('INSERT INTO task_runs (task_code, agent) VALUES (?, ?) RETURNING *')
+    .get(taskCode, agent) as Row
+  const run = toRun(r)
+  bus.emit('run', run)
+  return run
+}
+
+const RUN_COLUMNS: Record<string, string> = {
+  sessionId: 'session_id',
+  status: 'status',
+  durationMs: 'duration_ms',
+  apiDurationMs: 'api_duration_ms',
+  turns: 'turns',
+  inputTokens: 'input_tokens',
+  outputTokens: 'output_tokens',
+  cacheReadTokens: 'cache_read_tokens',
+  cacheCreationTokens: 'cache_creation_tokens',
+  costUsd: 'cost_usd',
+  models: 'models',
+  rateLimit: 'rate_limit'
+}
+
+export type RunPatch = Partial<Omit<TaskRun, 'id' | 'taskCode' | 'agent' | 'startedAt'>>
+
+export function patchRun(id: number, patch: RunPatch, finished = false): TaskRun {
+  const entries = Object.entries(patch).filter(([k, v]) => v !== undefined && k in RUN_COLUMNS)
+  const sets = entries.map(([k]) => `${RUN_COLUMNS[k]} = ?`)
+  if (finished) sets.push(`finished_at = datetime('now')`)
+  if (sets.length > 0) {
+    db.prepare(`UPDATE task_runs SET ${sets.join(', ')} WHERE id = ?`).run(
+      ...entries.map(([, v]) =>
+        v !== null && typeof v === 'object' ? JSON.stringify(v) : (v as string | number | null)
+      ),
+      id
+    )
+  }
+  const run = getRun(id)
+  if (!run) throw new Error(`Run ${id} not found`)
+  bus.emit('run', run)
+  return run
+}
+
+/** Runs left 'running' by a previous app session can't be reattached. */
+export function interruptRunningRuns(): void {
+  db.prepare(
+    `UPDATE task_runs SET status = 'interrupted', finished_at = datetime('now') WHERE status = 'running'`
+  ).run()
 }
 
 // ---- Events ----

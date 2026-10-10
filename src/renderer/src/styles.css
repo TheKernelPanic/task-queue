@@ -556,3 +556,90 @@ textarea {
   text-transform: none;
   letter-spacing: normal;
 }
+
+/* Usage */
+.usage-view section {
+  margin-top: 20px;
+}
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+.stat {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.stat-label {
+  color: var(--muted);
+  font-size: 11px;
+}
+.stat-value {
+  font-size: 18px;
+  margin-top: 4px;
+}
+.stat-value.small-value {
+  font-size: 14px;
+}
+.quota {
+  margin-bottom: 10px;
+}
+.quota-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.bar {
+  height: 8px;
+  background: var(--panel-2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  background: var(--green);
+}
+.bar-fill.warn {
+  background: var(--yellow);
+}
+.bar-fill.danger {
+  background: var(--danger);
+}
+.usage-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.usage-table th {
+  text-align: right;
+  color: var(--muted);
+  font-weight: normal;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.usage-table td {
+  text-align: right;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.usage-table th:first-child,
+.usage-table td:first-child {
+  text-align: left;
+}
+.run-success {
+  color: var(--green);
+}
+.run-error,
+.run-interrupted {
+  color: var(--danger);
+}
+.run-running {
+  color: var(--accent);
+}
+.run-cancelled {
+  color: var(--muted);
+}

@@ -42,6 +42,16 @@ Cada tarea tiene dos carpetas internas en `%APPDATA%/task-queue/storage/`:
 
 El agente se lanza con ambas carpetas como directorios adicionales (`--add-dir`), así que tiene acceso completo incluso en modo `acceptEdits`.
 
+### Consumo
+
+Cada ejecución del agente queda registrada como un *run* en `task_runs`. Una tarea reanudada tras una pregunta tiene varios. La pestaña **Consumo** de la tarea muestra:
+
+- Totales: coste estimado (precio de lista de la API), tokens de entrada, salida y caché, número de ejecuciones y tiempo.
+- Desglose por modelo y tabla de ejecuciones (estado, duración, turnos, tokens y coste).
+- Cuota del plan: uso de las ventanas de 5 h y 7 días y su hora de reinicio, según el último `rate_limit_event`. Es de toda la cuenta, no solo de la tarea.
+
+Claude Code informa del coste, del desglose por modelo y del tiempo de API acumulados por sesión. En los runs reanudados (`--resume`) se resta lo que ya está registrado en los runs anteriores de la misma sesión, para que no se cuente dos veces. Codex solo informa de tokens, sin coste ni modelo.
+
 ### Preguntas al usuario
 
 Si el agente necesita una decisión, llama a `ask_user` y termina su turno. La tarea pasa a `WaitingForInput` y la pregunta aparece en la ficha. Al responder, la tarea vuelve a `Pending` y el agente se reanuda en la misma sesión (`--resume`) con la respuesta.
@@ -59,7 +69,7 @@ src/
   shared/types.ts      modelo de dominio y contrato IPC
   main/
     index.ts           ventana, IPC
-    db.ts              SQLite (proyectos, tareas, procedimientos, eventos)
+    db.ts              SQLite (proyectos, tareas, procedimientos, eventos, runs)
     mcp.ts             servidor MCP (Streamable HTTP en 127.0.0.1:47821, con token)
     queue.ts           cola, ejecución de agentes, commit
     git.ts             commit y lectura de diffs

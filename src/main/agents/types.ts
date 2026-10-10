@@ -1,4 +1,12 @@
-import type { AgentId, Project, Task, TaskEventKind } from '@shared/types'
+import type {
+  AgentId,
+  ModelUsage,
+  Project,
+  RateLimitSnapshot,
+  Task,
+  TaskEventKind,
+  UsageTotals
+} from '@shared/types'
 import type { McpEndpoint } from '../mcp'
 
 export interface ParsedEvent {
@@ -11,6 +19,23 @@ export interface ParsedLine {
   sessionId?: string
   /** Final text produced by the agent, used as fallback summary. */
   result?: string
+  /** Consumption reported by the agent; several reports in one run are added up. */
+  usage?: UsageReport
+  /** Latest account quota status. */
+  rateLimit?: RateLimitSnapshot
+}
+
+export interface UsageReport extends UsageTotals {
+  models: ModelUsage[]
+  durationMs?: number
+  apiDurationMs?: number
+  turns?: number
+  isError?: boolean
+  /**
+   * Cost, per-model usage and API duration are cumulative for the whole agent session
+   * (Claude Code on --resume), so previous runs of the same session must be subtracted.
+   */
+  sessionCumulative?: boolean
 }
 
 export interface RunContext {

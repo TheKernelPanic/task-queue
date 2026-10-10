@@ -1,5 +1,12 @@
 import { MCP_SERVER_NAME } from '../mcp'
-import { systemInstructions, truncate, type AgentAdapter, type ParsedEvent } from './types'
+import type { RateLimitSnapshot } from '@shared/types'
+import {
+  systemInstructions,
+  truncate,
+  type AgentAdapter,
+  type ParsedEvent,
+  type UsageReport
+} from './types'
 
 type Block = Record<string, unknown> & { type: string }
 
@@ -20,6 +27,52 @@ function toolResultText(block: Block): string {
       .join('\n')
   }
   return ''
+}
+
+const num = (v: unknown): number => (typeof v === 'number' ? v : 0)
+
+function parseUsage(msg: Record<string, unknown>, isError: boolean): UsageReport {
+  const usage = (msg.usage ?? {}) as Record<string, unknown>
+  const modelUsage = (msg.modelUsage ?? {}) as Record<string, Record<string, unknown>>
+  return {
+    inputTokens: num(usage.input_tokens),
+    outputTokens: num(usage.output_tokens),
+    cacheReadTokens: num(usage.cache_read_input_tokens),
+    cacheCreationTokens: num(usage.cache_creation_input_tokens),
+    costUsd: typeof msg.total_cost_usd === 'number' ? msg.total_cost_usd : null,
+    models: Object.entries(modelUsage).map(([model, m]) => ({
+      model,
+      inputTokens: num(m.inputTokens),
+      outputTokens: num(m.outputTokens),
+      cacheReadTokens: num(m.cacheReadInputTokens),
+      cacheCreationTokens: num(m.cacheCreationInputTokens),
+      costUsd: typeof m.costUSD === 'number' ? m.costUSD : null
+    })),
+    durationMs: typeof msg.duration_ms === 'number' ? msg.duration_ms : undefined,
+    apiDurationMs: typeof msg.duration_api_ms === 'number' ? msg.duration_api_ms : undefined,
+    turns: typeof msg.num_turns === 'number' ? msg.num_turns : undefined,
+    isError,
+    sessionCumulative: true
+  }
+}
+
+const epochToIso = (v: unknown): string | null =>
+  typeof v === 'number' ? new Date(v * 1000).toISOString() : null
+
+function parseRateLimit(info: Record<string, unknown> | undefined): RateLimitSnapshot | undefined {
+  if (!info) return undefined
+  const windows: RateLimitSnapshot['windows'] = {}
+  const unified = (info.unifiedWindows ?? {}) as Record<string, Record<string, unknown>>
+  for (const [name, w] of Object.entries(unified)) {
+    if (typeof w.utilization === 'number') {
+      windows[name] = { utilization: w.utilization, resetsAt: epochToIso(w.resetsAt) }
+    }
+  }
+  return {
+    status: String(info.status ?? 'unknown'),
+    windows,
+    capturedAt: new Date().toISOString()
+  }
 }
 
 export const claudeAdapter: AgentAdapter = {
@@ -107,9 +160,13 @@ export const claudeAdapter: AgentAdapter = {
         return {
           events,
           sessionId: msg.session_id as string | undefined,
-          result: typeof msg.result === 'string' ? msg.result : undefined
+          result: typeof msg.result === 'string' ? msg.result : undefined,
+          usage: parseUsage(msg, isError)
         }
       }
+
+      case 'rate_limit_event':
+        return { events, rateLimit: parseRateLimit(msg.rate_limit_info as Record<string, unknown>) }
 
       default:
         return { events }

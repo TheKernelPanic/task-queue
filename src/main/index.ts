@@ -106,6 +106,7 @@ function registerIpc(): void {
     shell.showItemInFolder(path)
   })
 
+  ipcMain.handle('tasks:runs', (_e, code: string) => db.listRuns(code))
   ipcMain.handle('tasks:events', (_e, code: string) => db.listEvents(code))
   ipcMain.handle('tasks:commit', (_e, code: string) => queue.getCommit(code))
 
@@ -118,6 +119,7 @@ function registerIpc(): void {
 
   db.bus.on('task', (task) => mainWindow?.webContents.send('task:changed', task))
   db.bus.on('event', (event) => mainWindow?.webContents.send('task:event', event))
+  db.bus.on('run', (run) => mainWindow?.webContents.send('task:run', run))
 }
 
 app.whenReady().then(async () => {

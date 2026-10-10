@@ -74,6 +74,51 @@ export interface TaskFile {
   modifiedAt: string
 }
 
+/** Token and cost consumption, per model or aggregated. */
+export interface UsageTotals {
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheCreationTokens: number
+  /** API list-price estimate reported by the agent; null when the agent doesn't report it. */
+  costUsd: number | null
+}
+
+export interface ModelUsage extends UsageTotals {
+  model: string
+}
+
+export interface RateLimitWindow {
+  /** 0..1 */
+  utilization: number
+  resetsAt: string | null
+}
+
+/** Account plan quota as reported by the agent (account-wide, not per task). */
+export interface RateLimitSnapshot {
+  status: string
+  windows: Record<string, RateLimitWindow>
+  capturedAt: string
+}
+
+export type RunStatus = 'running' | 'success' | 'error' | 'cancelled' | 'interrupted'
+
+/** One agent process execution for a task (a resumed task has several runs). */
+export interface TaskRun extends UsageTotals {
+  id: number
+  taskCode: string
+  agent: AgentId
+  sessionId: string | null
+  status: RunStatus
+  startedAt: string
+  finishedAt: string | null
+  durationMs: number | null
+  apiDurationMs: number | null
+  turns: number | null
+  models: ModelUsage[]
+  rateLimit: RateLimitSnapshot | null
+}
+
 export type TaskEventKind = 'text' | 'thinking' | 'command' | 'output' | 'system' | 'error'
 
 export interface TaskEvent {
@@ -149,6 +194,8 @@ export interface TaskQueueApi {
   showInFolder(path: string): Promise<void>
   /** Absolute path of a File dropped from the OS (Electron webUtils). */
   getPathForFile(file: File): string
+  listRuns(code: string): Promise<TaskRun[]>
+  onTaskRun(cb: (run: TaskRun) => void): () => void
   listEvents(code: string): Promise<TaskEvent[]>
   getCommit(code: string): Promise<CommitInfo | null>
   pickPath(kind: 'file' | 'directory'): Promise<string | null>
