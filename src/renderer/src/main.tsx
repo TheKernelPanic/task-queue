@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import '@fontsource-variable/roboto'
 import './styles.css'
 
 // Dropping a file outside a drop zone would otherwise navigate the window to it.

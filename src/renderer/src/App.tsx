@@ -85,7 +85,10 @@ export default function App() {
   return (
     <div className="layout">
       <aside className="sidebar">
-        <h1>TaskQueue</h1>
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">≋</span>
+          <div><h1>TaskQueue</h1><span className="brand-caption">Tu espacio de ejecución</span></div>
+        </div>
         <section>
           <div className="section-title">
             Proyectos
@@ -139,7 +142,7 @@ export default function App() {
         {section === 'procedures' ? (
           <>
             <div className="pane-header">
-              <h2>Procedimientos</h2>
+              <div><div className="eyebrow">Biblioteca de trabajo</div><h2>Procedimientos</h2></div>
               <select
                 className="filter"
                 value={procedureFilter}
@@ -192,6 +195,7 @@ export default function App() {
           <>
             <div className="pane-header">
               <div>
+                <div className="eyebrow">Cola de trabajo</div>
                 <h2>{project.name}</h2>
                 <div className="muted small">{project.path}</div>
               </div>
@@ -230,10 +234,10 @@ export default function App() {
                 ))}
               </tbody>
             </table>
-            {projectTasks.length === 0 && <p className="muted">No hay tareas en este proyecto.</p>}
+            {projectTasks.length === 0 && <div className="list-empty"><span aria-hidden="true">＋</span><h3>Espacio para tu próxima idea</h3><p className="muted">Crea una tarea para empezar a trabajar en este proyecto.</p></div>}
           </>
         ) : (
-          <p className="muted">Añade un proyecto para empezar.</p>
+          <div className="list-empty"><span aria-hidden="true">＋</span><h3>Todo empieza con un proyecto</h3><p className="muted">Añade un proyecto desde la barra lateral para empezar.</p></div>
         )}
       </main>
 
@@ -311,9 +315,12 @@ export default function App() {
           />
         )}
         {view.kind === 'empty' && (
-          <p className="muted">
-            {section === 'procedures' ? 'Selecciona un procedimiento.' : 'Selecciona una tarea.'}
-          </p>
+          <div className="detail-empty">
+            <div className="empty-illustration" aria-hidden="true"><i /><i /><i /></div>
+            <div className="eyebrow">Todo en su sitio</div>
+            <h2>{section === 'procedures' ? 'Cada proceso, a mano' : 'El foco en tu próxima tarea'}</h2>
+            <p>{section === 'procedures' ? 'Selecciona un procedimiento para consultar sus instrucciones.' : 'Selecciona una tarea para ver sus detalles, seguir su progreso y trabajar con tu agente.'}</p>
+          </div>
         )}
       </section>
     </div>
