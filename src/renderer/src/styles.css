@@ -1,0 +1,456 @@
+:root {
+  --bg: #16181d;
+  --panel: #1d2027;
+  --panel-2: #252932;
+  --border: #323743;
+  --text: #e3e6ec;
+  --muted: #8a91a0;
+  --accent: #6d8cff;
+  --danger: #e5616b;
+  --green: #4cc38a;
+  --yellow: #e7b84b;
+  --orange: #f08c4a;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+code,
+pre {
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 12.5px;
+}
+
+button {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font: inherit;
+}
+button:hover {
+  border-color: var(--accent);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+button.danger {
+  color: var(--danger);
+}
+button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+button.icon {
+  padding: 0 8px;
+  line-height: 20px;
+}
+
+input,
+select,
+textarea {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 9px;
+  font: inherit;
+  width: 100%;
+}
+textarea {
+  resize: vertical;
+  font-family: 'Cascadia Code', Consolas, monospace;
+}
+
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 12px;
+}
+.error {
+  color: var(--danger);
+  margin: 8px 0;
+}
+
+/* Layout */
+.layout {
+  display: grid;
+  grid-template-columns: 220px minmax(360px, 1fr) minmax(480px, 1.3fr);
+  height: 100vh;
+}
+.sidebar,
+.task-list-pane,
+.detail-pane {
+  overflow: auto;
+  padding: 16px;
+}
+.sidebar {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+}
+.sidebar h1 {
+  font-size: 18px;
+  margin: 0 0 20px;
+}
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.project-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+}
+.project-list li {
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.project-list li:hover {
+  background: var(--panel-2);
+}
+.project-list li.selected {
+  background: var(--panel-2);
+  color: var(--accent);
+}
+.agents div {
+  padding: 3px 0;
+}
+.task-list-pane {
+  border-right: 1px solid var(--border);
+}
+.pane-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+.pane-header h2 {
+  margin: 0;
+}
+
+/* Task table */
+.task-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.task-table th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: normal;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.task-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.task-table tr {
+  cursor: pointer;
+}
+.task-table tbody tr:hover {
+  background: var(--panel);
+}
+.task-table tr.selected {
+  background: var(--panel-2);
+}
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  background: var(--panel-2);
+  white-space: nowrap;
+}
+.badge-Pending {
+  color: var(--yellow);
+}
+.badge-InProgress {
+  color: var(--accent);
+}
+.badge-WaitingForInput {
+  color: var(--orange);
+}
+.badge-Stopped {
+  color: var(--danger);
+}
+.badge-Done {
+  color: var(--green);
+}
+.badge-Cancelled {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+/* Forms */
+.task-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.task-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.task-form .row {
+  display: flex;
+  gap: 8px;
+}
+.task-form .row input {
+  flex: 1;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.prompt-editor {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.toolbar .spacer {
+  flex: 1;
+}
+.toolbar button {
+  padding: 3px 10px;
+  font-size: 12px;
+}
+.prompt-editor textarea {
+  border: none;
+  border-radius: 0;
+  min-height: 320px;
+}
+.prompt-editor .preview {
+  min-height: 320px;
+  padding: 8px 12px;
+}
+
+/* Detail */
+.task-detail header {
+  margin-bottom: 16px;
+}
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.title-row h2 {
+  margin: 0;
+  flex: 1;
+}
+.meta {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 6px 0 12px;
+}
+.task-detail .actions {
+  justify-content: flex-start;
+}
+.question {
+  background: var(--panel);
+  border: 1px solid var(--orange);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.question textarea {
+  min-height: 80px;
+}
+.question button {
+  align-self: flex-end;
+}
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.tabs button {
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+}
+.tabs button.active {
+  border-bottom-color: var(--accent);
+}
+
+/* Markdown */
+.markdown pre {
+  background: var(--bg);
+  padding: 10px;
+  border-radius: 6px;
+  overflow: auto;
+}
+.markdown code {
+  background: var(--panel-2);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.markdown pre code {
+  background: none;
+  padding: 0;
+}
+.markdown a {
+  color: var(--accent);
+}
+
+/* History */
+.history-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 2px 8px;
+  background: var(--panel-2);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.chip input {
+  width: auto;
+}
+.event {
+  border-left: 3px solid var(--border);
+  padding: 4px 10px;
+  margin-bottom: 8px;
+}
+.event-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+}
+.event pre {
+  margin: 4px 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.event .markdown p {
+  margin: 4px 0;
+}
+.event-command {
+  border-left-color: var(--accent);
+}
+.event-command pre {
+  color: var(--accent);
+}
+.event-output pre {
+  color: var(--muted);
+  max-height: 240px;
+  overflow: auto;
+}
+.event-thinking {
+  border-left-color: var(--muted);
+  font-style: italic;
+}
+.event-system {
+  border-left-color: var(--green);
+}
+.event-error {
+  border-left-color: var(--danger);
+}
+.event-error pre {
+  color: var(--danger);
+}
+
+/* Commit */
+.commit-header pre {
+  white-space: pre-wrap;
+  background: var(--panel);
+  padding: 8px;
+  border-radius: 6px;
+}
+.commit-body {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 8px;
+}
+.commit-files {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 12px;
+}
+.commit-files li {
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: 4px;
+  word-break: break-all;
+}
+.commit-files li.selected {
+  background: var(--panel-2);
+  color: var(--accent);
+}
+.diff {
+  margin: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: auto;
+}
+.diff div {
+  padding: 0 8px;
+  white-space: pre;
+}
+.diff-add {
+  background: rgba(76, 195, 138, 0.15);
+  color: var(--green);
+}
+.diff-del {
+  background: rgba(229, 97, 107, 0.15);
+  color: var(--danger);
+}
+.diff-hunk {
+  color: var(--accent);
+}
+.diff-file {
+  color: var(--muted);
+}
