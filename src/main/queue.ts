@@ -1,6 +1,7 @@
 import { spawn, execFile, type ChildProcess } from 'node:child_process'
 import { createInterface } from 'node:readline'
 import {
+  commitMessage,
   isTaskDeletable,
   MANUAL_TRANSITIONS,
   type ModelUsage,
@@ -12,7 +13,7 @@ import {
 import * as db from './db'
 import { adapters, resolveAgentPath } from './agents'
 import type { UsageReport } from './agents/types'
-import { commitTask, getCommit as gitGetCommit } from './git'
+import { findCommitBySubject, getCommit as gitGetCommit, hasChanges } from './git'
 import { getMcpEndpoint } from './mcp'
 import {
   addAnswerFiles,
@@ -256,19 +257,7 @@ async function finalize(
   if (task.status === 'Done') {
     db.patchTask(code, { question: null, answer: null })
     const project = db.getProject(task.projectId)
-    if (project?.isGitRepo) {
-      try {
-        const hash = await commitTask(project.path, task)
-        if (hash) {
-          db.patchTask(code, { commitHash: hash })
-          db.addEvent(code, 'system', `Committed ${hash.slice(0, 8)}`)
-        } else {
-          db.addEvent(code, 'system', 'No changes to commit')
-        }
-      } catch (err) {
-        db.addEvent(code, 'error', `Commit failed: ${(err as Error).message}`)
-      }
-    }
+    if (project?.isGitRepo && task.commit) await recordAgentCommit(task, project.path)
     return
   }
 
@@ -284,6 +273,27 @@ async function finalize(
     status: 'Stopped',
     summary: task.summary ?? result ?? null
   })
+}
+
+/** The agent commits its own work; find that commit so the Commit tab can show it. */
+async function recordAgentCommit(task: Task, path: string): Promise<void> {
+  const message = commitMessage(task)
+  try {
+    const hash = await findCommitBySubject(path, message)
+    if (hash) {
+      db.patchTask(task.code, { commitHash: hash })
+      db.addEvent(task.code, 'system', `Commit del agente encontrado: ${hash.slice(0, 8)} "${message}"`)
+    } else {
+      const pending = await hasChanges(path)
+      db.addEvent(
+        task.code,
+        'error',
+        `No se encontró el commit "${message}"${pending ? '; hay cambios sin commitear en el proyecto' : ''}`
+      )
+    }
+  } catch (err) {
+    db.addEvent(task.code, 'error', `No se pudo comprobar el commit: ${(err as Error).message}`)
+  }
 }
 
 export async function tick(): Promise<void> {

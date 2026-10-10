@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import {
+  commitMessage,
   isTaskDeletable,
   isTaskEditable,
   MANUAL_TRANSITIONS,
@@ -34,10 +35,11 @@ interface Props {
   task: Task
   agents: AgentInfo[]
   procedures: Procedure[]
+  gitRepo: boolean
   onOpenProcedure: (code: string) => void
 }
 
-export default function TaskDetail({ task, agents, procedures, onOpenProcedure }: Props) {
+export default function TaskDetail({ task, agents, procedures, gitRepo, onOpenProcedure }: Props) {
   const [tab, setTab] = useState<Tab>('prompt')
   const [editing, setEditing] = useState(false)
   const [answer, setAnswer] = useState('')
@@ -68,6 +70,8 @@ export default function TaskDetail({ task, agents, procedures, onOpenProcedure }
         <div className="meta">
           Agente: {agentName}
           {' · '}Modelo: {task.model ? <code>{task.model}</code> : 'por defecto'}
+          {' · '}Commit:{' '}
+          {task.commit && gitRepo ? <code>{commitMessage(task)}</code> : 'no'}
           {task.sessionId && <> · Sesión: <code>{task.sessionId.slice(0, 8)}</code></>}
           {task.commitHash && <> · Commit: <code>{task.commitHash.slice(0, 8)}</code></>}
         </div>
@@ -143,6 +147,8 @@ export default function TaskDetail({ task, agents, procedures, onOpenProcedure }
           agents={agents}
           procedures={procedures.filter((p) => p.projectIds.includes(task.projectId))}
           initial={task}
+          code={task.code}
+          gitRepo={gitRepo}
           submitLabel="Guardar"
           onCancel={() => setEditing(false)}
           onSubmit={async ({ resourcePaths: _, ...values }) => {

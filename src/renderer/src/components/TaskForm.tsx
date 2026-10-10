@@ -1,15 +1,17 @@
 import { useState } from 'react'
-import type { AgentId, AgentInfo, Procedure, Task } from '@shared/types'
+import { AGENT_COMMIT_LABELS, type AgentId, type AgentInfo, type Procedure, type Task } from '@shared/types'
 import DropZone from './DropZone'
 import MarkdownEditor from './MarkdownEditor'
 import ModelPicker from './ModelPicker'
 import ProcedurePicker from './ProcedurePicker'
+import Switch from './Switch'
 
 interface TaskValues {
   title: string
   prompt: string
   agent: AgentId
   model: string | null
+  commit: boolean
   procedures: string[]
   /** Files to copy into the task resources once created (only when withResources). */
   resourcePaths: string[]
@@ -18,7 +20,11 @@ interface TaskValues {
 interface Props {
   agents: AgentInfo[]
   procedures: Procedure[]
-  initial?: Pick<Task, 'title' | 'prompt' | 'agent' | 'model' | 'procedures'>
+  initial?: Pick<Task, 'title' | 'prompt' | 'agent' | 'model' | 'commit' | 'procedures'>
+  /** Code of the task being edited, to preview the commit message (new tasks have none yet). */
+  code?: string
+  /** Commits are only possible in git projects. */
+  gitRepo: boolean
   submitLabel: string
   /** Show a drop zone to attach resource files (new tasks; existing ones use the Files tab). */
   withResources?: boolean
@@ -32,6 +38,8 @@ export default function TaskForm({
   initial,
   submitLabel,
   withResources,
+  code,
+  gitRepo,
   onSubmit,
   onCancel
 }: Props) {
@@ -40,6 +48,7 @@ export default function TaskForm({
   const [prompt, setPrompt] = useState(initial?.prompt ?? '')
   const [agent, setAgent] = useState<AgentId>(initial?.agent ?? defaultAgent)
   const [model, setModel] = useState<string | null>(initial?.model ?? null)
+  const [commit, setCommit] = useState(initial?.commit ?? true)
   const [attached, setAttached] = useState<string[]>(initial?.procedures ?? [])
   const [resourcePaths, setResourcePaths] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -56,6 +65,7 @@ export default function TaskForm({
         prompt,
         agent,
         model: model?.trim() || null,
+        commit: gitRepo && commit,
         procedures: attached,
         resourcePaths
       })
@@ -97,6 +107,27 @@ export default function TaskForm({
           value={model}
           onChange={setModel}
         />
+      </div>
+
+      <div className="field">
+        <Switch
+          checked={gitRepo && commit}
+          disabled={!gitRepo}
+          onChange={setCommit}
+          label="Hacer commit de los cambios"
+        />
+        <span className="muted small">
+          {!gitRepo
+            ? 'El proyecto no es un repositorio git: el agente no hará commit.'
+            : commit
+              ? <>
+                  El agente hará commit al terminar con el mensaje{' '}
+                  <code>
+                    {AGENT_COMMIT_LABELS[agent]}: {code ?? '<código de la tarea>'}
+                  </code>
+                </>
+              : 'El agente dejará los cambios sin commitear.'}
+        </span>
       </div>
 
       <MarkdownEditor value={prompt} onChange={setPrompt} placeholder="Describe la tarea en Markdown…" />

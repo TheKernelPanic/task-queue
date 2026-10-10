@@ -21,7 +21,7 @@ Se guarda en `%APPDATA%/task-queue/taskqueue.db`.
 3. Al pasarla a `Pending` entra en la cola. Se ejecuta como mucho una tarea por proyecto a la vez.
 4. La app lanza el agente en la carpeta del proyecto con el código de la tarea como prompt, el MCP ya configurado y unas instrucciones de sistema.
 5. El agente llama a `get_task` (y a `get_procedure` por cada procedimiento vinculado), después a `start_task` (`InProgress`), trabaja y termina con `complete_task` y un resumen en Markdown (`Done`).
-6. La app hace commit de los cambios con el mensaje `DK-0001: <título>` y el resumen.
+6. Si la tarea tiene activado el switch **Hacer commit de los cambios** (activado por defecto y solo disponible en proyectos git), el propio agente hace commit antes de `complete_task` con exactamente el mensaje `<Agente>: <código>`, por ejemplo `Claude: DK-0012` o `Codex: DK-0012`. La instrucción va en el prompt del agente y en `get_task` (`commit`). Al terminar, la app busca ese commit para mostrarlo en la pestaña Commit y avisa en el History si no lo encuentra. Con el switch desactivado, el agente deja los cambios sin commitear.
 
 El stream JSON del agente se guarda en `task_events`, clasificado como `text`, `thinking`, `command`, `output`, `system` o `error`. Se muestra en la pestaña **History** de la tarea.
 
@@ -93,7 +93,6 @@ src/
 - Codex (codex-cli 0.162): probado de extremo a extremo (MCP, preguntas, reanudación con `exec resume`, procedimientos, outputs y commit). Sandbox y carpetas con escritura se pasan con `-c` porque `exec resume` no acepta `-s` ni `--add-dir`. Las tools del MCP se aprueban con `default_tools_approval_mode="approve"`.
   - En modo `acceptEdits` Codex usa su sandbox de Windows (`workspace-write`). Si `codex doctor` informa de un fallo en el sandbox, no podrá ejecutar comandos ni escribir ficheros; usa `bypassPermissions` o repara el sandbox de Codex.
   - Codex no informa de coste ni de modelo, solo de tokens.
-- El commit hace `git add -A`: incluye cualquier cambio sin commitear que hubiera en el repositorio.
 - Editor del prompt: textarea Markdown con vista previa. Pendiente un editor enriquecido (TipTap o MDXEditor).
 - Visor de diff simple. Pendiente un Monaco DiffEditor.
 - Pendiente: borrar o editar proyectos, empaquetado (electron-builder).

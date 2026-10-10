@@ -12,6 +12,12 @@ export type TaskStatus = (typeof TASK_STATUSES)[number]
 
 export type AgentId = 'claude' | 'codex'
 
+/** Name used in commit messages made by each agent. */
+export const AGENT_COMMIT_LABELS: Record<AgentId, string> = {
+  claude: 'Claude',
+  codex: 'Codex'
+}
+
 export type PermissionMode = 'acceptEdits' | 'bypassPermissions'
 
 export interface ModelOption {
@@ -46,6 +52,8 @@ export interface Task {
   agent: AgentId
   /** Model for the agent; null uses the agent's default. */
   model: string | null
+  /** Whether the agent must commit its changes (message: commitMessage(task)). */
+  commit: boolean
   status: TaskStatus
   summary: string | null
   question: string | null
@@ -163,6 +171,7 @@ export interface NewTask {
   prompt: string
   agent: AgentId
   model: string | null
+  commit: boolean
   procedures: string[]
 }
 
@@ -171,6 +180,7 @@ export interface TaskUpdate {
   prompt?: string
   agent?: AgentId
   model?: string | null
+  commit?: boolean
   procedures?: string[]
 }
 
@@ -194,6 +204,11 @@ export const MANUAL_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   Stopped: ['Pending', 'Cancelled'],
   Done: [],
   Cancelled: []
+}
+
+/** Exact commit message the agent must use, e.g. "Claude: DK-0012". */
+export function commitMessage(task: Pick<Task, 'agent' | 'code'>): string {
+  return `${AGENT_COMMIT_LABELS[task.agent]}: ${task.code}`
 }
 
 /** A task (definition, procedures and resources) can only be modified until it is queued. */

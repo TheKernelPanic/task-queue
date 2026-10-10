@@ -60,7 +60,7 @@ export const codexAdapter: AgentAdapter = {
       `${server}.default_tools_approval_mode="approve"`,
       ...(resumeSessionId ? [resumeSessionId] : []),
       // Codex has no system-prompt flag in exec mode, so instructions travel with the prompt.
-      `${systemInstructions(task.code)}\n\n${prompt}`
+      `${systemInstructions(task, project)}\n\n${prompt}`
     ]
   },
 

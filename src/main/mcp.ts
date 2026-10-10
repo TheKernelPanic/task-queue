@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { z } from 'zod'
-import type { Task } from '@shared/types'
+import { commitMessage, type Task } from '@shared/types'
 import * as db from './db'
 import { answersDir, listFiles, outputsDir, resourcesDir, workspaceDir } from './storage'
 
@@ -69,6 +69,10 @@ function buildServer(): McpServer {
             workspaceDir: workspaceDir(task.code, true),
             previousQuestion: task.question,
             answer: task.answer,
+            commit:
+              task.commit && project?.isGitRepo
+                ? { required: true, message: commitMessage(task) }
+                : { required: false, note: 'Do not commit your changes' },
             answerFiles: listFiles(answersDir(task.code)).map((f) => f.path)
           },
           null,
@@ -144,7 +148,7 @@ function buildServer(): McpServer {
     {
       title: 'Complete task',
       description:
-        'Marks the task as Done and stores a Markdown summary of the work. Do NOT commit; TaskQueue commits the changes with the task code.',
+        'Marks the task as Done and stores a Markdown summary of the work. If get_task says commit.required, commit your changes with commit.message BEFORE calling this.',
       inputSchema: {
         code: z.string(),
         summary: z.string().describe('Markdown summary of what was done, files touched and how to verify it')

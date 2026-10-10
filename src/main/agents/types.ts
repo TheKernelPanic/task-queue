@@ -1,3 +1,4 @@
+import { commitMessage } from '@shared/types'
 import type {
   AgentId,
   ModelOption,
@@ -71,7 +72,19 @@ export function truncate(value: string, max = MAX_OUTPUT_CHARS): string {
   return value.length > max ? `${value.slice(0, max)}\n… [truncated ${value.length - max} chars]` : value
 }
 
-export function systemInstructions(code: string): string {
+/** Commit instruction for the agent, depending on the task's switch and the project. */
+function commitInstruction(task: Task, project: Project): string {
+  if (task.commit && project.isGitRepo) {
+    return [
+      `7. Before calling complete_task, commit all your changes in the project with git, using exactly this commit message: "${commitMessage(task)}".`,
+      '   Commit only files inside the project; never commit files from outputDir or workspaceDir. If the commit fails, explain why in the summary.'
+    ].join('\n')
+  }
+  return '7. Do NOT commit: leave your changes uncommitted in the working tree.'
+}
+
+export function systemInstructions(task: Task, project: Project): string {
+  const code = task.code
   return [
     `You are executing task ${code} from TaskQueue.`,
     `1. Call the TaskQueue MCP tool get_task with code "${code}" to read the instructions.`,
@@ -83,6 +96,6 @@ export function systemInstructions(code: string): string {
     '   never write outside the project, outputDir or workspaceDir.',
     '5. If you need a decision from the user to continue, call ask_user and then stop immediately.',
     `6. When finished, call complete_task with code "${code}" and a Markdown summary of the work.`,
-    'Do not run git commit yourself; TaskQueue commits the changes.'
+    commitInstruction(task, project)
   ].join('\n')
 }

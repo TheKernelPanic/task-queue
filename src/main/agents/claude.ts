@@ -75,6 +75,15 @@ function parseRateLimit(info: Record<string, unknown> | undefined): RateLimitSna
   }
 }
 
+const GIT_COMMIT_TOOLS = [
+  'Bash(git add:*)',
+  'Bash(git commit:*)',
+  'Bash(git status:*)',
+  'PowerShell(git add:*)',
+  'PowerShell(git commit:*)',
+  'PowerShell(git status:*)'
+]
+
 export const claudeAdapter: AgentAdapter = {
   id: 'claude',
   name: 'Claude Code',
@@ -121,10 +130,12 @@ export const claudeAdapter: AgentAdapter = {
       JSON.stringify(mcpConfig),
       '--allowedTools',
       `mcp__${MCP_SERVER_NAME}`,
+      // acceptEdits blocks shell commands; let the agent run the git commands it needs to commit.
+      ...(task.commit && project.isGitRepo ? GIT_COMMIT_TOOLS : []),
       '--permission-mode',
       project.permissionMode,
       '--append-system-prompt',
-      systemInstructions(task.code),
+      systemInstructions(task, project),
       '--add-dir',
       resourcesDir,
       outputsDir,

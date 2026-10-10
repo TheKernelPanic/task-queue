@@ -36,6 +36,12 @@ function createWindow(): void {
     minWidth: 900,
     minHeight: 600,
     title: 'TaskQueue',
+    icon: join(
+      process.env.ELECTRON_RENDERER_URL
+        ? join(app.getAppPath(), 'src/renderer/public')
+        : join(__dirname, '../renderer'),
+      process.platform === 'win32' ? 'icon.ico' : 'icon.png'
+    ),
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -76,6 +82,7 @@ function registerIpc(): void {
       prompt: patch.prompt,
       agent: patch.agent,
       model: patch.model === undefined ? undefined : patch.model?.trim() || null,
+      commit: patch.commit,
       procedures: patch.procedures
     })
   })

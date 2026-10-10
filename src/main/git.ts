@@ -1,5 +1,5 @@
 import { simpleGit } from 'simple-git'
-import type { CommitInfo, Task } from '@shared/types'
+import type { CommitInfo } from '@shared/types'
 
 export async function isGitRepo(path: string): Promise<boolean> {
   try {
@@ -9,15 +9,27 @@ export async function isGitRepo(path: string): Promise<boolean> {
   }
 }
 
-/** Stages everything and commits with the task code. Returns the hash, or null if nothing changed. */
-export async function commitTask(path: string, task: Task): Promise<string | null> {
-  const git = simpleGit(path)
-  await git.add('-A')
-  const status = await git.status()
-  if (status.staged.length === 0 && status.files.length === 0) return null
-  const body = task.summary ? `\n\n${task.summary}` : ''
-  await git.commit(`${task.code}: ${task.title}${body}`)
-  return (await git.revparse(['HEAD'])).trim()
+/** Most recent commit whose subject is exactly `message`, or null. */
+export async function findCommitBySubject(path: string, message: string): Promise<string | null> {
+  const SEP = '\x1f'
+  const log = await simpleGit(path).raw([
+    'log',
+    '--fixed-strings',
+    `--grep=${message}`,
+    `--format=%H${SEP}%s`,
+    '-n',
+    '20'
+  ])
+  for (const line of log.split('\n')) {
+    const [hash, subject] = line.split(SEP)
+    if (hash && subject?.trim() === message) return hash.trim()
+  }
+  return null
+}
+
+/** True if the working tree has uncommitted changes. */
+export async function hasChanges(path: string): Promise<boolean> {
+  return !(await simpleGit(path).status()).isClean()
 }
 
 export async function getCommit(path: string, hash: string): Promise<CommitInfo> {

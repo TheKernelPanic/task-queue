@@ -122,6 +122,7 @@ export function openDatabase(file: string): void {
   addColumn('task_procedures', 'snapshot_prompt', 'TEXT')
   addColumn('task_procedures', 'snapshot_at', 'TEXT')
   addColumn('tasks', 'model', 'TEXT')
+  addColumn('tasks', 'auto_commit', 'INTEGER NOT NULL DEFAULT 1')
 }
 
 function addColumn(table: string, column: string, definition: string): void {
@@ -152,6 +153,7 @@ function toTask(r: Row): Task {
     prompt: r.prompt as string,
     agent: r.agent as Task['agent'],
     model: (r.model as string) ?? null,
+    commit: r.auto_commit === 1,
     status: r.status as TaskStatus,
     summary: (r.summary as string) ?? null,
     question: (r.question as string) ?? null,
@@ -304,8 +306,17 @@ export function createTask(input: NewTask): Task {
   const task = transaction(() => {
     const code = nextCode('task', TASK_PREFIX)
     db.prepare(
-      'INSERT INTO tasks (code, project_id, title, prompt, agent, model) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(code, input.projectId, input.title, input.prompt, input.agent, input.model?.trim() || null)
+      `INSERT INTO tasks (code, project_id, title, prompt, agent, model, auto_commit)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      code,
+      input.projectId,
+      input.title,
+      input.prompt,
+      input.agent,
+      input.model?.trim() || null,
+      input.commit ? 1 : 0
+    )
     setTaskProcedures(code, input.projectId, input.procedures)
     return getTask(code)!
   })
@@ -318,6 +329,7 @@ const COLUMN_MAP: Record<string, string> = {
   prompt: 'prompt',
   agent: 'agent',
   model: 'model',
+  commit: 'auto_commit',
   status: 'status',
   summary: 'summary',
   question: 'question',
@@ -336,7 +348,7 @@ export function patchTask(code: string, patch: TaskPatch): Task {
     if (entries.length > 0) {
       const sets = entries.map(([k]) => `${COLUMN_MAP[k]} = ?`).join(', ')
       db.prepare(`UPDATE tasks SET ${sets}, updated_at = datetime('now') WHERE code = ?`).run(
-        ...entries.map(([, v]) => v as string | null),
+        ...entries.map(([, v]) => (typeof v === 'boolean' ? (v ? 1 : 0) : (v as string | null))),
         code
       )
     }

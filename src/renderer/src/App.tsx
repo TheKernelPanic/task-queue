@@ -86,7 +86,7 @@ export default function App() {
     <div className="layout">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true">≋</span>
+          <img className="brand-mark" src="./icon.png" alt="" aria-hidden="true" />
           <div><h1>TaskQueue</h1><span className="brand-caption">Tu espacio de ejecución</span></div>
         </div>
         <section>
@@ -263,6 +263,7 @@ export default function App() {
               procedures={procedures.filter((p) => p.projectIds.includes(project.id))}
               submitLabel="Crear"
               withResources
+              gitRepo={project.isGitRepo}
               onCancel={() => setView({ kind: 'empty' })}
               onSubmit={async ({ resourcePaths, ...values }) => {
                 const task = await window.api.createTask({ ...values, projectId: project.id })
@@ -278,6 +279,7 @@ export default function App() {
             task={selected}
             agents={agents}
             procedures={procedures}
+            gitRepo={projects.find((p) => p.id === selected.projectId)?.isGitRepo ?? false}
             onOpenProcedure={openProcedure}
           />
         )}
