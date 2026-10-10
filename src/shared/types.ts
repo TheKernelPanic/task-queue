@@ -223,7 +223,25 @@ export function isTaskDeletable(task: Pick<Task, 'status'>): boolean {
 
 export const TASK_LOCKED_MESSAGE = 'La tarea ya se ha encolado y no puede modificarse'
 
+export interface UpdateInfo {
+  version: string
+  releasedAt: string
+}
+
+export interface AppInfo {
+  version: string
+  /** False when running from source (npm run dev / start): updates are disabled. */
+  packaged: boolean
+  dataDir: string
+  releasesDir: string
+}
+
 export interface TaskQueueApi {
+  getAppInfo(): Promise<AppInfo>
+  checkForUpdate(): Promise<UpdateInfo | null>
+  /** Runs the new installer silently; the app closes and reopens updated. */
+  installUpdate(): Promise<void>
+  onUpdateAvailable(cb: (info: UpdateInfo) => void): () => void
   listAgents(): Promise<AgentInfo[]>
   listProjects(): Promise<Project[]>
   createProject(input: NewProject): Promise<Project>

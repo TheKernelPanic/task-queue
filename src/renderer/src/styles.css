@@ -878,3 +878,21 @@ label.switch {
   opacity: 0.5;
   cursor: default;
 }
+
+/* App footer: version + update */
+.app-footer {
+  margin-top: auto;
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.update-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  font-size: 12px;
+}

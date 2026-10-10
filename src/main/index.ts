@@ -17,6 +17,14 @@ import { isGitRepo } from './git'
 import { startMcpServer } from './mcp'
 import * as storage from './storage'
 import * as queue from './queue'
+import { backupOnVersionChange } from './backup'
+import * as updater from './updater'
+
+const APP_ID = 'com.thekernelpanic.taskqueue'
+
+// Data always lives in %APPDATA%/task-queue, whatever the product name of the build, so dev runs,
+// installed builds and updates all share it. Must be set before anything reads userData.
+app.setPath('userData', join(app.getPath('appData'), 'task-queue'))
 
 let mainWindow: BrowserWindow | null = null
 
@@ -142,6 +150,20 @@ function registerIpc(): void {
     return result.canceled ? null : result.filePaths[0]
   })
 
+  ipcMain.handle('app:info', () => ({
+    version: app.getVersion(),
+    packaged: app.isPackaged,
+    dataDir: app.getPath('userData'),
+    releasesDir: updater.releasesDir()
+  }))
+  ipcMain.handle('update:check', () => updater.checkForUpdate())
+  ipcMain.handle('update:install', async () => {
+    if (queue.hasRunningTasks()) {
+      throw new Error('Hay agentes trabajando; espera a que terminen o detén sus tareas antes de actualizar')
+    }
+    await updater.installUpdate()
+  })
+
   db.bus.on('task', (task) => mainWindow?.webContents.send('task:changed', task))
   db.bus.on('event', (event) => mainWindow?.webContents.send('task:event', event))
   db.bus.on('run', (run) => mainWindow?.webContents.send('task:run', run))
@@ -152,18 +174,34 @@ function registerIpc(): void {
 // The Done chime must play even if the window never received a user gesture.
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
 
-app.whenReady().then(async () => {
-  db.openDatabase(join(app.getPath('userData'), 'taskqueue.db'))
+// One instance only: two would share the database, the MCP port and the agent queue.
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow?.isMinimized()) mainWindow.restore()
+    mainWindow?.focus()
+  })
+  app.whenReady().then(start)
+}
+
+async function start(): Promise<void> {
+  app.setAppUserModelId(APP_ID)
+  const dataDir = app.getPath('userData')
+  const dbFile = join(dataDir, 'taskqueue.db')
+  backupOnVersionChange(dataDir, dbFile, app.getVersion())
+  db.openDatabase(dbFile)
   storage.initStorage(join(app.getPath('userData'), 'storage'))
   await startMcpServer()
   registerIpc()
   queue.startQueue()
   createWindow()
+  updater.startUpdateChecks((info) => mainWindow?.webContents.send('update:available', info))
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
-})
+}
 
 app.on('before-quit', () => queue.stopAll())
 

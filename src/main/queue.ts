@@ -322,6 +322,10 @@ export function startQueue(): void {
   void tick()
 }
 
+export function hasRunningTasks(): boolean {
+  return running.size > 0
+}
+
 export function stopAll(): void {
   for (const r of running.values()) {
     r.cancelled = true

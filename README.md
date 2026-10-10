@@ -14,6 +14,21 @@ npm run build
 Requiere Node 22+ y git. La base de datos SQLite usa `node:sqlite` (incluido en Electron), sin módulos nativos que compilar.
 Se guarda en `%APPDATA%/task-queue/taskqueue.db`.
 
+## Build, instalación y actualizaciones
+
+```bash
+npm run dist       # genera release/TaskQueue-Setup-<versión>.exe sin cambiar la versión
+npm run release    # sube la versión (patch), genera el instalador y lo publica en la carpeta de versiones
+npm run release -- minor   # o major, o una versión explícita: npm run release -- 1.2.0
+```
+
+- **Instalación:** al ejecutar `TaskQueue-Setup-<versión>.exe`, el programa se instala sin pedir permisos de administrador en `%LOCALAPPDATA%\Programs	ask-queue` y se crean accesos directos en el Escritorio y en el menú Inicio. Para fijarlo en la barra de tareas: clic derecho en el icono de la aplicación abierta → *Anclar a la barra de tareas*. Windows no permite anclar desde un instalador.
+- **Datos:** siempre en `%APPDATA%	ask-queue`, tanto para el desarrollo como para la versión instalada. La carpeta está fijada en el código, así que no depende del nombre del producto. El instalador no la toca, ni al actualizar ni al desinstalar.
+- **Actualizaciones:** `npm run release` deja el instalador y un `latest.json` (con versión y sha512) en `%USERPROFILE%\TaskQueueeleases`; se puede cambiar con `TASKQUEUE_RELEASES_DIR`. La aplicación instalada lo comprueba al arrancar y cada 30 minutos, y muestra **Instalar y reiniciar** en el pie del panel lateral. Al pulsarlo, verifica el sha512, ejecuta el instalador en silencio (`/S --force-run`) y se reabre actualizada. No deja actualizar mientras haya agentes trabajando.
+- **Copia de la base de datos:** cuando cambia la versión, antes de abrir y migrar la base de datos se guarda una copia consistente en `%APPDATA%	ask-queueackups` (`VACUUM INTO`). Se conservan las 10 últimas. Las migraciones solo añaden tablas y columnas.
+- **Una sola instancia:** al abrir TaskQueue por segunda vez se trae al frente la ventana existente. Cierra la versión instalada antes de usar `npm run dev`, porque comparten datos.
+- El instalador no está firmado, así que la primera vez Windows SmartScreen puede pedir confirmación (*Más información → Ejecutar de todas formas*).
+
 ## Flujo
 
 1. Se da de alta un **proyecto** (carpeta, idealmente un repositorio git) y su modo de permisos para el agente.
@@ -95,4 +110,4 @@ src/
   - Codex no informa de coste ni de modelo, solo de tokens.
 - Editor del prompt: textarea Markdown con vista previa. Pendiente un editor enriquecido (TipTap o MDXEditor).
 - Visor de diff simple. Pendiente un Monaco DiffEditor.
-- Pendiente: borrar o editar proyectos, empaquetado (electron-builder).
+- Pendiente: borrar o editar proyectos, firma de código del instalador.

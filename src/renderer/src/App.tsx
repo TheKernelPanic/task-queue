@@ -6,6 +6,7 @@ import ProjectForm from './components/ProjectForm'
 import StatusBadge from './components/StatusBadge'
 import TaskDetail from './components/TaskDetail'
 import TaskForm from './components/TaskForm'
+import UpdateFooter from './components/UpdateFooter'
 import { playDoneChime } from './sound'
 
 type View =
@@ -136,6 +137,7 @@ export default function App() {
             </div>
           ))}
         </section>
+        <UpdateFooter />
       </aside>
 
       <main className="task-list-pane">

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
-import type { Task, TaskEvent, TaskQueueApi, TaskRun } from '@shared/types'
+import type { Task, TaskEvent, TaskQueueApi, TaskRun, UpdateInfo } from '@shared/types'
 
 function subscribe<T>(channel: string, cb: (value: T) => void): () => void {
   const listener = (_e: IpcRendererEvent, value: T) => cb(value)
@@ -8,6 +8,10 @@ function subscribe<T>(channel: string, cb: (value: T) => void): () => void {
 }
 
 const api: TaskQueueApi = {
+  getAppInfo: () => ipcRenderer.invoke('app:info'),
+  checkForUpdate: () => ipcRenderer.invoke('update:check'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  onUpdateAvailable: (cb) => subscribe<UpdateInfo>('update:available', cb),
   listAgents: () => ipcRenderer.invoke('agents:list'),
   listProjects: () => ipcRenderer.invoke('projects:list'),
   createProject: (input) => ipcRenderer.invoke('projects:create', input),
