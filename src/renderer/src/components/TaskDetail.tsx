@@ -101,7 +101,7 @@ export default function TaskDetail({ task, agents, procedures, onOpenProcedure }
       {editing ? (
         <TaskForm
           agents={agents}
-          procedures={procedures}
+          procedures={procedures.filter((p) => p.projectIds.includes(task.projectId))}
           initial={task}
           submitLabel="Guardar"
           onCancel={() => setEditing(false)}

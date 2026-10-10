@@ -52,6 +52,8 @@ export interface Procedure {
   code: string
   title: string
   prompt: string
+  /** Projects the procedure belongs to; tasks can only link procedures of their own project. */
+  projectIds: number[]
   createdAt: string
   updatedAt: string
 }
@@ -59,6 +61,7 @@ export interface Procedure {
 export interface ProcedureInput {
   title: string
   prompt: string
+  projectIds: number[]
 }
 
 export type TaskEventKind = 'text' | 'thinking' | 'command' | 'output' | 'system' | 'error'

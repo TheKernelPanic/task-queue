@@ -490,3 +490,18 @@ textarea {
 .linked-procedures a:hover {
   color: var(--accent);
 }
+
+.project-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pane-header .filter {
+  width: auto;
+  margin-left: auto;
+  margin-right: 8px;
+}
+.project-checks .chip {
+  flex-direction: row;
+  color: var(--text);
+}

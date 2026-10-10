@@ -29,6 +29,8 @@ El stream JSON del agente se guarda en `task_events`, clasificado como `text`, `
 
 Un **procedimiento** (`PR-0001`, …) es un bloque reutilizable de instrucciones: título corto y prompt en Markdown, donde también se pueden insertar rutas. Se gestionan desde *Biblioteca → Procedimientos* y pueden editarse en cualquier momento.
 
+Cada procedimiento pertenece a uno o varios proyectos, y como mínimo a uno. Una tarea solo puede vincular procedimientos de su propio proyecto. No se puede quitar un proyecto de un procedimiento mientras alguna tarea de ese proyecto lo use.
+
 Al crear o editar una tarea se le pueden vincular procedimientos, en orden. `get_task` devuelve la lista (código y título) y el agente lee cada uno con la tool MCP `get_procedure`. El agente siempre lee la versión actual del procedimiento. Un procedimiento vinculado a alguna tarea no se puede eliminar.
 
 ### Preguntas al usuario

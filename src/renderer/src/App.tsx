@@ -24,6 +24,7 @@ export default function App() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [procedures, setProcedures] = useState<Procedure[]>([])
   const [section, setSection] = useState<Section>('tasks')
+  const [procedureFilter, setProcedureFilter] = useState<number | 'all'>('all')
   const [view, setView] = useState<View>({ kind: 'empty' })
 
   useEffect(() => {
@@ -49,6 +50,11 @@ export default function App() {
   const project = projects.find((p) => p.id === projectId) ?? null
   const projectTasks = useMemo(() => tasks.filter((t) => t.projectId === projectId), [tasks, projectId])
   const selected = view.kind === 'task' ? tasks.find((t) => t.code === view.code) : undefined
+  const projectNames = new Map(projects.map((p) => [p.id, p.name]))
+  const visibleProcedures =
+    procedureFilter === 'all'
+      ? procedures
+      : procedures.filter((p) => p.projectIds.includes(procedureFilter))
   const selectedProcedure =
     view.kind === 'procedure' ? procedures.find((p) => p.code === view.code) : undefined
 
@@ -123,6 +129,20 @@ export default function App() {
           <>
             <div className="pane-header">
               <h2>Procedimientos</h2>
+              <select
+                className="filter"
+                value={procedureFilter}
+                onChange={(e) =>
+                  setProcedureFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))
+                }
+              >
+                <option value="all">Todos los proyectos</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
               <button className="primary" onClick={() => setView({ kind: 'newProcedure' })}>
                 Nuevo procedimiento
               </button>
@@ -132,10 +152,11 @@ export default function App() {
                 <tr>
                   <th>Código</th>
                   <th>Título</th>
+                  <th>Proyectos</th>
                 </tr>
               </thead>
               <tbody>
-                {procedures.map((p) => (
+                {visibleProcedures.map((p) => (
                   <tr
                     key={p.code}
                     className={view.kind === 'procedure' && view.code === p.code ? 'selected' : ''}
@@ -145,11 +166,16 @@ export default function App() {
                       <code>{p.code}</code>
                     </td>
                     <td>{p.title}</td>
+                    <td className="small">
+                      {p.projectIds.map((id) => projectNames.get(id)).join(', ') || (
+                        <span className="error">sin proyecto</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {procedures.length === 0 && <p className="muted">No hay procedimientos.</p>}
+            {visibleProcedures.length === 0 && <p className="muted">No hay procedimientos.</p>}
           </>
         ) : project ? (
           <>
@@ -216,7 +242,7 @@ export default function App() {
             <h2>Nueva tarea</h2>
             <TaskForm
               agents={agents}
-              procedures={procedures}
+              procedures={procedures.filter((p) => p.projectIds.includes(project.id))}
               submitLabel="Crear"
               onCancel={() => setView({ kind: 'empty' })}
               onSubmit={async (values) => {
@@ -239,6 +265,13 @@ export default function App() {
           <>
             <h2>Nuevo procedimiento</h2>
             <ProcedureForm
+              projects={projects}
+              initial={{
+                title: '',
+                prompt: '',
+                projectIds:
+                  procedureFilter !== 'all' ? [procedureFilter] : projectId !== null ? [projectId] : []
+              }}
               submitLabel="Crear"
               onCancel={() => setView({ kind: 'empty' })}
               onSubmit={async (values) => {
@@ -253,6 +286,7 @@ export default function App() {
           <ProcedureDetail
             key={selectedProcedure.code}
             procedure={selectedProcedure}
+            projects={projects}
             onUpdated={upsertProcedure}
             onDeleted={(code) => {
               setProcedures((prev) => prev.filter((p) => p.code !== code))

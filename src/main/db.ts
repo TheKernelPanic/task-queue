@@ -80,6 +80,12 @@ export function openDatabase(file: string): void {
       PRIMARY KEY (task_code, procedure_code)
     );
 
+    CREATE TABLE IF NOT EXISTS procedure_projects (
+      procedure_code TEXT NOT NULL REFERENCES procedures(code) ON DELETE CASCADE,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      PRIMARY KEY (procedure_code, project_id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_code, id);
   `)
 }
@@ -121,6 +127,7 @@ function toProcedure(r: Row): Procedure {
     code: r.code as string,
     title: r.title as string,
     prompt: r.prompt as string,
+    projectIds: procedureProjectIds(r.code as string),
     createdAt: r.created_at as string,
     updatedAt: r.updated_at as string
   }
@@ -193,10 +200,14 @@ function taskProcedureCodes(taskCode: string): string[] {
   ).map((r) => r.procedure_code as string)
 }
 
-function setTaskProcedures(taskCode: string, codes: string[]): void {
+function setTaskProcedures(taskCode: string, projectId: number, codes: string[]): void {
   const unique = [...new Set(codes)]
   const missing = unique.filter((c) => !getProcedure(c))
   if (missing.length > 0) throw new Error(`Unknown procedures: ${missing.join(', ')}`)
+  const foreign = unique.filter((c) => !getProcedure(c)!.projectIds.includes(projectId))
+  if (foreign.length > 0) {
+    throw new Error(`Procedimientos que no pertenecen al proyecto de la tarea: ${foreign.join(', ')}`)
+  }
   db.prepare('DELETE FROM task_procedures WHERE task_code = ?').run(taskCode)
   const insert = db.prepare(
     'INSERT INTO task_procedures (task_code, procedure_code, position) VALUES (?, ?, ?)'
@@ -225,7 +236,7 @@ export function createTask(input: NewTask): Task {
     db.prepare(
       'INSERT INTO tasks (code, project_id, title, prompt, agent) VALUES (?, ?, ?, ?, ?)'
     ).run(code, input.projectId, input.title, input.prompt, input.agent)
-    setTaskProcedures(code, input.procedures)
+    setTaskProcedures(code, input.projectId, input.procedures)
     return getTask(code)!
   })
   bus.emit('task', task)
@@ -257,8 +268,12 @@ export function patchTask(code: string, patch: TaskPatch): Task {
         code
       )
     }
-    if (patch.procedures) setTaskProcedures(code, patch.procedures)
-    return getTask(code)
+    const current = getTask(code)
+    if (current && patch.procedures) {
+      setTaskProcedures(code, current.projectId, patch.procedures)
+      return getTask(code)
+    }
+    return current
   })
   if (!task) throw new Error(`Task ${code} not found`)
   bus.emit('task', task)
@@ -283,25 +298,75 @@ export function getProcedure(code: string): Procedure | null {
   return r ? toProcedure(r) : null
 }
 
+function procedureProjectIds(code: string): number[] {
+  return (
+    db
+      .prepare('SELECT project_id FROM procedure_projects WHERE procedure_code = ? ORDER BY project_id')
+      .all(code) as Row[]
+  ).map((r) => r.project_id as number)
+}
+
+/**
+ * Replaces the projects a procedure belongs to. A project cannot be removed while
+ * tasks of that project still reference the procedure.
+ */
+function setProcedureProjects(code: string, projectIds: number[]): void {
+  const unique = [...new Set(projectIds)]
+  if (unique.length === 0) throw new Error('El procedimiento debe pertenecer al menos a un proyecto')
+  const missing = unique.filter((id) => !getProject(id))
+  if (missing.length > 0) throw new Error(`Unknown projects: ${missing.join(', ')}`)
+
+  const removed = procedureProjectIds(code).filter((id) => !unique.includes(id))
+  if (removed.length > 0) {
+    const placeholders = removed.map(() => '?').join(', ')
+    const users = (
+      db
+        .prepare(
+          `SELECT tp.task_code FROM task_procedures tp
+           JOIN tasks t ON t.code = tp.task_code
+           WHERE tp.procedure_code = ? AND t.project_id IN (${placeholders})
+           ORDER BY tp.task_code`
+        )
+        .all(code, ...removed) as Row[]
+    ).map((r) => r.task_code as string)
+    if (users.length > 0) {
+      throw new Error(
+        `No se puede quitar el proyecto: ${code} está referenciado por ${users.join(', ')}`
+      )
+    }
+  }
+
+  db.prepare('DELETE FROM procedure_projects WHERE procedure_code = ?').run(code)
+  const insert = db.prepare(
+    'INSERT INTO procedure_projects (procedure_code, project_id) VALUES (?, ?)'
+  )
+  for (const id of unique) insert.run(code, id)
+}
+
 export function createProcedure(input: ProcedureInput): Procedure {
   return transaction(() => {
     const code = nextCode('procedure', PROCEDURE_PREFIX)
-    const r = db
-      .prepare('INSERT INTO procedures (code, title, prompt) VALUES (?, ?, ?) RETURNING *')
-      .get(code, input.title, input.prompt) as Row
-    return toProcedure(r)
+    db.prepare('INSERT INTO procedures (code, title, prompt) VALUES (?, ?, ?)').run(
+      code,
+      input.title,
+      input.prompt
+    )
+    setProcedureProjects(code, input.projectIds)
+    return getProcedure(code)!
   })
 }
 
 export function updateProcedure(code: string, input: ProcedureInput): Procedure {
-  const r = db
-    .prepare(
-      `UPDATE procedures SET title = ?, prompt = ?, updated_at = datetime('now')
-       WHERE code = ? RETURNING *`
-    )
-    .get(input.title, input.prompt, code) as Row | undefined
-  if (!r) throw new Error(`Procedure ${code} not found`)
-  return toProcedure(r)
+  return transaction(() => {
+    const result = db
+      .prepare(
+        `UPDATE procedures SET title = ?, prompt = ?, updated_at = datetime('now') WHERE code = ?`
+      )
+      .run(input.title, input.prompt, code)
+    if (result.changes === 0) throw new Error(`Procedure ${code} not found`)
+    setProcedureProjects(code, input.projectIds)
+    return getProcedure(code)!
+  })
 }
 
 /** Procedures referenced by any task cannot be deleted, so task history stays meaningful. */
