@@ -33,6 +33,15 @@ Cada procedimiento pertenece a uno o varios proyectos, y como mínimo a uno. Una
 
 Al crear o editar una tarea se le pueden vincular procedimientos, en orden. `get_task` devuelve la lista (código y título) y el agente lee cada uno con la tool MCP `get_procedure`. El agente siempre lee la versión actual del procedimiento. Un procedimiento vinculado a alguna tarea no se puede eliminar.
 
+### Recursos y outputs
+
+Cada tarea tiene dos carpetas internas en `%APPDATA%/task-queue/storage/`:
+
+- `resources/<TAREA>/`: ficheros que el usuario suelta en la tarea (pestaña **Ficheros**, o al crearla). Se copian ahí y, si un nombre ya existe, se renombra (`data (1).csv`). `get_task` devuelve sus rutas absolutas en `resources`.
+- `outputs/<TAREA>/`: ficheros que genera el agente y que no pertenecen al proyecto. `get_task` devuelve la ruta en `outputDir`. No entran en el commit.
+
+El agente se lanza con ambas carpetas como directorios adicionales (`--add-dir`), así que tiene acceso completo incluso en modo `acceptEdits`.
+
 ### Preguntas al usuario
 
 Si el agente necesita una decisión, llama a `ask_user` y termina su turno. La tarea pasa a `WaitingForInput` y la pregunta aparece en la ficha. Al responder, la tarea vuelve a `Pending` y el agente se reanuda en la misma sesión (`--resume`) con la respuesta.
@@ -54,6 +63,7 @@ src/
     mcp.ts             servidor MCP (Streamable HTTP en 127.0.0.1:47821, con token)
     queue.ts           cola, ejecución de agentes, commit
     git.ts             commit y lectura de diffs
+    storage.ts         carpetas internas de recursos y outputs por tarea
     agents/            detección y adaptadores (claude, codex)
   preload/             puente IPC
   renderer/            UI React
@@ -66,4 +76,4 @@ src/
 - El commit hace `git add -A`: incluye cualquier cambio sin commitear que hubiera en el repositorio.
 - Editor del prompt: textarea Markdown con vista previa. Pendiente un editor enriquecido (TipTap o MDXEditor).
 - Visor de diff simple. Pendiente un Monaco DiffEditor.
-- Pendiente: adjuntos multimedia, borrar o editar proyectos, empaquetado (electron-builder).
+- Pendiente: borrar o editar proyectos, empaquetado (electron-builder).

@@ -64,6 +64,16 @@ export interface ProcedureInput {
   projectIds: number[]
 }
 
+/** A file in a task's internal resources or outputs folder. */
+export interface TaskFile {
+  /** Path relative to the task folder, with forward slashes. */
+  name: string
+  /** Absolute path on disk. */
+  path: string
+  size: number
+  modifiedAt: string
+}
+
 export type TaskEventKind = 'text' | 'thinking' | 'command' | 'output' | 'system' | 'error'
 
 export interface TaskEvent {
@@ -129,6 +139,16 @@ export interface TaskQueueApi {
   createProcedure(input: ProcedureInput): Promise<Procedure>
   updateProcedure(code: string, input: ProcedureInput): Promise<Procedure>
   deleteProcedure(code: string): Promise<void>
+  listResources(code: string): Promise<TaskFile[]>
+  addResources(code: string, paths: string[]): Promise<TaskFile[]>
+  removeResource(code: string, name: string): Promise<TaskFile[]>
+  listOutputs(code: string): Promise<TaskFile[]>
+  /** Opens a file or folder of the internal storage with the OS default app. */
+  openPath(path: string): Promise<void>
+  /** Shows a file of the internal storage in the OS file explorer. */
+  showInFolder(path: string): Promise<void>
+  /** Absolute path of a File dropped from the OS (Electron webUtils). */
+  getPathForFile(file: File): string
   listEvents(code: string): Promise<TaskEvent[]>
   getCommit(code: string): Promise<CommitInfo | null>
   pickPath(kind: 'file' | 'directory'): Promise<string | null>

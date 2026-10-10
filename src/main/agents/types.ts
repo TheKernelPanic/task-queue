@@ -21,6 +21,9 @@ export interface RunContext {
   prompt: string
   /** Agent session to resume, if any. */
   resumeSessionId: string | null
+  /** Internal folders outside the project the agent must be able to read/write. */
+  resourcesDir: string
+  outputsDir: string
 }
 
 export interface AgentAdapter {
@@ -43,7 +46,8 @@ export function systemInstructions(code: string): string {
     `1. Call the TaskQueue MCP tool get_task with code "${code}" to read the instructions.`,
     '2. If the task lists procedures, read each one with get_procedure and follow them as part of the work.',
     `3. Call start_task with code "${code}" before doing any work.`,
-    '4. Do the work in the current working directory.',
+    '4. Do the work in the current working directory. Use the files listed in "resources" (absolute paths) as inputs.',
+    '   Files you generate that do not belong to the project (reports, exports, images…) go in "outputDir".',
     '5. If you need a decision from the user to continue, call ask_user and then stop immediately.',
     `6. When finished, call complete_task with code "${code}" and a Markdown summary of the work.`,
     'Do not run git commit yourself; TaskQueue commits the changes.'

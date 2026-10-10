@@ -244,9 +244,11 @@ export default function App() {
               agents={agents}
               procedures={procedures.filter((p) => p.projectIds.includes(project.id))}
               submitLabel="Crear"
+              withResources
               onCancel={() => setView({ kind: 'empty' })}
-              onSubmit={async (values) => {
+              onSubmit={async ({ resourcePaths, ...values }) => {
                 const task = await window.api.createTask({ ...values, projectId: project.id })
+                if (resourcePaths.length > 0) await window.api.addResources(task.code, resourcePaths)
                 setView({ kind: 'task', code: task.code })
               }}
             />

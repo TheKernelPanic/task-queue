@@ -5,6 +5,7 @@ import * as db from './db'
 import { detectAgents } from './agents'
 import { isGitRepo } from './git'
 import { startMcpServer } from './mcp'
+import * as storage from './storage'
 import * as queue from './queue'
 
 let mainWindow: BrowserWindow | null = null
@@ -24,6 +25,7 @@ function createWindow(): void {
     }
   })
 
+  mainWindow.webContents.on('will-navigate', (event) => event.preventDefault())
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url)
     return { action: 'deny' }
@@ -74,6 +76,36 @@ function registerIpc(): void {
   )
   ipcMain.handle('procedures:delete', (_e, code: string) => db.deleteProcedure(code))
 
+  ipcMain.handle('resources:list', (_e, code: string) =>
+    storage.listFiles(storage.resourcesDir(code))
+  )
+  ipcMain.handle('resources:add', (_e, code: string, paths: string[]) => {
+    const task = db.getTask(code)
+    if (!task) throw new Error(`Task ${code} not found`)
+    if (task.status === 'Done' || task.status === 'Cancelled') {
+      throw new Error(`No se pueden añadir recursos a una tarea ${task.status}`)
+    }
+    return storage.addResources(code, paths)
+  })
+  ipcMain.handle('resources:remove', (_e, code: string, name: string) => {
+    const task = db.getTask(code)
+    if (!task) throw new Error(`Task ${code} not found`)
+    if (task.status === 'InProgress') {
+      throw new Error('No se pueden quitar recursos mientras el agente trabaja')
+    }
+    return storage.removeResource(code, name)
+  })
+  ipcMain.handle('outputs:list', (_e, code: string) => storage.listFiles(storage.outputsDir(code)))
+  ipcMain.handle('files:open', async (_e, path: string) => {
+    if (!storage.isStoragePath(path)) throw new Error('Ruta fuera del almacenamiento interno')
+    const error = await shell.openPath(path)
+    if (error) throw new Error(error)
+  })
+  ipcMain.handle('files:showInFolder', (_e, path: string) => {
+    if (!storage.isStoragePath(path)) throw new Error('Ruta fuera del almacenamiento interno')
+    shell.showItemInFolder(path)
+  })
+
   ipcMain.handle('tasks:events', (_e, code: string) => db.listEvents(code))
   ipcMain.handle('tasks:commit', (_e, code: string) => queue.getCommit(code))
 
@@ -90,6 +122,7 @@ function registerIpc(): void {
 
 app.whenReady().then(async () => {
   db.openDatabase(join(app.getPath('userData'), 'taskqueue.db'))
+  storage.initStorage(join(app.getPath('userData'), 'storage'))
   await startMcpServer()
   registerIpc()
   queue.startQueue()

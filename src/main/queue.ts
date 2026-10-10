@@ -5,6 +5,7 @@ import * as db from './db'
 import { adapters, resolveAgentPath } from './agents'
 import { commitTask, getCommit as gitGetCommit } from './git'
 import { getMcpEndpoint } from './mcp'
+import { outputsDir, resourcesDir } from './storage'
 
 const POLL_MS = 3000
 
@@ -60,7 +61,9 @@ async function launch(task: Task): Promise<void> {
     project,
     mcp: getMcpEndpoint(),
     prompt: buildPrompt(task),
-    resumeSessionId: task.sessionId
+    resumeSessionId: task.sessionId,
+    resourcesDir: resourcesDir(task.code, true),
+    outputsDir: outputsDir(task.code, true)
   })
 
   db.addEvent(

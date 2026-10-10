@@ -505,3 +505,54 @@ textarea {
   flex-direction: row;
   color: var(--text);
 }
+
+/* Files */
+.dropzone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 18px;
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  margin: 8px 0;
+}
+.dropzone.over {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(109, 140, 255, 0.08);
+}
+.dropzone.disabled {
+  opacity: 0.5;
+}
+.file-list {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0;
+}
+.file-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+.file-list li:hover {
+  background: var(--panel);
+}
+.file-list a {
+  color: var(--text);
+  word-break: break-all;
+}
+.file-list .spacer {
+  flex: 1;
+}
+.files-view section {
+  margin-bottom: 24px;
+}
+.files-view .section-title button {
+  margin-left: 6px;
+  text-transform: none;
+  letter-spacing: normal;
+}

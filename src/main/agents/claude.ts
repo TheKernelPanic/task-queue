@@ -27,7 +27,7 @@ export const claudeAdapter: AgentAdapter = {
   name: 'Claude Code',
   executable: 'claude',
 
-  buildArgs({ task, project, mcp, prompt, resumeSessionId }) {
+  buildArgs({ task, project, mcp, prompt, resumeSessionId, resourcesDir, outputsDir }) {
     const mcpConfig = {
       mcpServers: {
         [MCP_SERVER_NAME]: {
@@ -50,7 +50,10 @@ export const claudeAdapter: AgentAdapter = {
       '--permission-mode',
       project.permissionMode,
       '--append-system-prompt',
-      systemInstructions(task.code)
+      systemInstructions(task.code),
+      '--add-dir',
+      resourcesDir,
+      outputsDir
     ]
     if (resumeSessionId) args.push('--resume', resumeSessionId)
     return args

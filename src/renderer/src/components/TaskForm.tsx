@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { AgentId, AgentInfo, Procedure, Task } from '@shared/types'
+import DropZone from './DropZone'
 import MarkdownEditor from './MarkdownEditor'
 import ProcedurePicker from './ProcedurePicker'
 
@@ -8,6 +9,8 @@ interface TaskValues {
   prompt: string
   agent: AgentId
   procedures: string[]
+  /** Files to copy into the task resources once created (only when withResources). */
+  resourcePaths: string[]
 }
 
 interface Props {
@@ -15,16 +18,27 @@ interface Props {
   procedures: Procedure[]
   initial?: Pick<Task, 'title' | 'prompt' | 'agent' | 'procedures'>
   submitLabel: string
+  /** Show a drop zone to attach resource files (new tasks; existing ones use the Files tab). */
+  withResources?: boolean
   onSubmit: (values: TaskValues) => Promise<void>
   onCancel: () => void
 }
 
-export default function TaskForm({ agents, procedures, initial, submitLabel, onSubmit, onCancel }: Props) {
+export default function TaskForm({
+  agents,
+  procedures,
+  initial,
+  submitLabel,
+  withResources,
+  onSubmit,
+  onCancel
+}: Props) {
   const defaultAgent = agents.find((a) => a.installed)?.id ?? 'claude'
   const [title, setTitle] = useState(initial?.title ?? '')
   const [prompt, setPrompt] = useState(initial?.prompt ?? '')
   const [agent, setAgent] = useState<AgentId>(initial?.agent ?? defaultAgent)
   const [attached, setAttached] = useState<string[]>(initial?.procedures ?? [])
+  const [resourcePaths, setResourcePaths] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
 
   async function submit(e: React.FormEvent) {
@@ -34,7 +48,7 @@ export default function TaskForm({ agents, procedures, initial, submitLabel, onS
       return
     }
     try {
-      await onSubmit({ title: title.trim(), prompt, agent, procedures: attached })
+      await onSubmit({ title: title.trim(), prompt, agent, procedures: attached, resourcePaths })
     } catch (err) {
       setError((err as Error).message)
     }
@@ -65,6 +79,32 @@ export default function TaskForm({ agents, procedures, initial, submitLabel, onS
         <span className="field-label">Procedimientos</span>
         <ProcedurePicker procedures={procedures} value={attached} onChange={setAttached} />
       </div>
+
+      {withResources && (
+        <div className="field">
+          <span className="field-label">Recursos</span>
+          <DropZone
+            onPaths={(paths) => setResourcePaths((prev) => [...new Set([...prev, ...paths])])}
+          />
+          {resourcePaths.length > 0 && (
+            <ul className="file-list">
+              {resourcePaths.map((p) => (
+                <li key={p}>
+                  <span title={p}>{p.split(/[\\/]/).pop()}</span>
+                  <span className="spacer" />
+                  <button
+                    type="button"
+                    className="icon danger"
+                    onClick={() => setResourcePaths((prev) => prev.filter((x) => x !== p))}
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {error && <div className="error">{error}</div>}
 

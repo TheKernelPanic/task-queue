@@ -5,6 +5,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { z } from 'zod'
 import * as db from './db'
+import { listFiles, outputsDir, resourcesDir } from './storage'
 
 export const MCP_SERVER_NAME = 'taskqueue'
 const DEFAULT_PORT = 47821
@@ -37,7 +38,7 @@ function buildServer(): McpServer {
     {
       title: 'Get task',
       description:
-        'Returns the instructions of a TaskQueue task (title, prompt, project path, required procedures) and, if the task was resumed after a question, the answer from the user. Read every listed procedure with get_procedure and follow it.',
+        'Returns the instructions of a TaskQueue task: title, prompt, project path, required procedures, absolute paths of the resource files attached to the task, the output directory for generated files that do not belong to the project and, if the task was resumed after a question, the answer from the user. Read every listed procedure with get_procedure and follow it.',
       inputSchema: { code: z.string().describe('Task code, e.g. DK-0001') }
     },
     async ({ code }) => {
@@ -53,6 +54,8 @@ function buildServer(): McpServer {
             projectPath: project?.path,
             prompt: task.prompt,
             procedures: task.procedures.map((p) => ({ code: p, title: db.getProcedure(p)?.title })),
+            resources: listFiles(resourcesDir(task.code)).map((f) => f.path),
+            outputDir: outputsDir(task.code, true),
             previousQuestion: task.question,
             answer: task.answer
           },

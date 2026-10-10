@@ -7,12 +7,13 @@ import {
   type TaskStatus
 } from '@shared/types'
 import CommitView from './CommitView'
+import FilesView from './FilesView'
 import HistoryView from './HistoryView'
 import Markdown from './Markdown'
 import StatusBadge from './StatusBadge'
 import TaskForm from './TaskForm'
 
-type Tab = 'prompt' | 'summary' | 'history' | 'commit'
+type Tab = 'prompt' | 'files' | 'summary' | 'history' | 'commit'
 
 const ACTION_LABELS: Record<TaskStatus, string> = {
   Created: 'Volver a Creada',
@@ -105,7 +106,7 @@ export default function TaskDetail({ task, agents, procedures, onOpenProcedure }
           initial={task}
           submitLabel="Guardar"
           onCancel={() => setEditing(false)}
-          onSubmit={async (values) => {
+          onSubmit={async ({ resourcePaths: _, ...values }) => {
             await window.api.updateTask(task.code, values)
             setEditing(false)
           }}
@@ -116,6 +117,7 @@ export default function TaskDetail({ task, agents, procedures, onOpenProcedure }
             {(
               [
                 ['prompt', 'Prompt'],
+                ['files', 'Ficheros'],
                 ['summary', 'Resumen'],
                 ['history', 'History'],
                 ['commit', 'Commit']
@@ -152,6 +154,7 @@ export default function TaskDetail({ task, agents, procedures, onOpenProcedure }
                 )}
               </>
             )}
+            {tab === 'files' && <FilesView task={task} />}
             {tab === 'summary' &&
               (task.summary ? <Markdown>{task.summary}</Markdown> : <p className="muted">Sin resumen todavía.</p>)}
             {tab === 'history' && <HistoryView code={task.code} />}
