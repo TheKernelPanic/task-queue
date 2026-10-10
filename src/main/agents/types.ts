@@ -61,6 +61,8 @@ export interface AgentAdapter {
   models: ModelOption[]
   buildArgs(ctx: RunContext): string[]
   parseLine(line: string): ParsedLine
+  /** Removes harmless noise from the agent's stderr before it is recorded as an error. */
+  cleanStderr?(text: string): string
 }
 
 export const MAX_OUTPUT_CHARS = 20_000

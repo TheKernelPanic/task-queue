@@ -14,18 +14,49 @@ export const adapters: Record<AgentId, AgentAdapter> = {
 
 const resolved = new Map<AgentId, string | null>()
 
-async function locate(executable: string): Promise<string | null> {
+async function find(executable: string, env?: NodeJS.ProcessEnv): Promise<string | null> {
   const finder = process.platform === 'win32' ? 'where' : 'which'
   try {
-    const { stdout } = await execFileAsync(finder, [executable])
+    const { stdout } = await execFileAsync(finder, [executable], { env })
     const candidates = stdout.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
-    // On Windows prefer real executables / npm shims over extensionless scripts.
+    // On Windows prefer real executables, then npm shims, over extensionless scripts.
     return (
-      candidates.find((c) => /\.(exe|cmd)$/i.test(c)) ?? candidates[0] ?? null
+      candidates.find((c) => /\.exe$/i.test(c)) ??
+      candidates.find((c) => /\.cmd$/i.test(c)) ??
+      candidates[0] ??
+      null
     )
   } catch {
     return null
   }
+}
+
+/**
+ * Current machine + user PATH from the registry. The app inherits PATH from whatever launched it,
+ * so agents installed while it (or its terminal) was open would otherwise not be found.
+ */
+async function registryPath(): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync('powershell.exe', [
+      '-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      "[Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')"
+    ])
+    return stdout.trim() || null
+  } catch {
+    return null
+  }
+}
+
+async function locate(executable: string): Promise<string | null> {
+  const found = await find(executable)
+  if (found || process.platform !== 'win32') return found
+  const path = await registryPath()
+  if (!path) return null
+  // Windows env keys are case-insensitive: drop any existing Path/PATH before setting it.
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k.toLowerCase() !== 'path'))
+  return find(executable, { ...env, Path: path })
 }
 
 export async function detectAgents(): Promise<AgentInfo[]> {

@@ -90,7 +90,9 @@ src/
 ## Estado actual / pendiente
 
 - Claude Code: probado de extremo a extremo, incluidas las preguntas y la reanudación.
-- Codex: adaptador escrito según el formato `codex exec --json`, **sin probar**. En Windows, si se instala como `codex.cmd`, el lanzamiento necesitará ajustes.
+- Codex (codex-cli 0.162): probado de extremo a extremo (MCP, preguntas, reanudación con `exec resume`, procedimientos, outputs y commit). Sandbox y carpetas con escritura se pasan con `-c` porque `exec resume` no acepta `-s` ni `--add-dir`. Las tools del MCP se aprueban con `default_tools_approval_mode="approve"`.
+  - En modo `acceptEdits` Codex usa su sandbox de Windows (`workspace-write`). Si `codex doctor` informa de un fallo en el sandbox, no podrá ejecutar comandos ni escribir ficheros; usa `bypassPermissions` o repara el sandbox de Codex.
+  - Codex no informa de coste ni de modelo, solo de tokens.
 - El commit hace `git add -A`: incluye cualquier cambio sin commitear que hubiera en el repositorio.
 - Editor del prompt: textarea Markdown con vista previa. Pendiente un editor enriquecido (TipTap o MDXEditor).
 - Visor de diff simple. Pendiente un Monaco DiffEditor.

@@ -234,7 +234,9 @@ async function launch(task: Task): Promise<void> {
     // Agents that don't report duration get the wall-clock time of the process.
     const durationMs = db.getRun(runId)?.durationMs ?? Date.now() - startedAt
     db.patchRun(runId, { status, durationMs }, true)
-    void finalize(task.code, run, exitCode, result, stderr.join('')).finally(() => void tick())
+    const rawStderr = stderr.join('')
+    const cleanStderr = adapter.cleanStderr ? adapter.cleanStderr(rawStderr) : rawStderr
+    void finalize(task.code, run, exitCode, result, cleanStderr).finally(() => void tick())
   })
 }
 
