@@ -17,7 +17,7 @@ const api: TaskQueueApi = {
   createTask: (input) => ipcRenderer.invoke('tasks:create', input),
   updateTask: (code, patch) => ipcRenderer.invoke('tasks:update', code, patch),
   setTaskStatus: (code, status) => ipcRenderer.invoke('tasks:setStatus', code, status),
-  answerQuestion: (code, answer) => ipcRenderer.invoke('tasks:answer', code, answer),
+  answerQuestion: (code, answer, paths) => ipcRenderer.invoke('tasks:answer', code, answer, paths),
   listProcedures: () => ipcRenderer.invoke('procedures:list'),
   createProcedure: (input) => ipcRenderer.invoke('procedures:create', input),
   updateProcedure: (code, input) => ipcRenderer.invoke('procedures:update', code, input),
@@ -26,6 +26,7 @@ const api: TaskQueueApi = {
   addResources: (code, paths) => ipcRenderer.invoke('resources:add', code, paths),
   removeResource: (code, name) => ipcRenderer.invoke('resources:remove', code, name),
   listOutputs: (code) => ipcRenderer.invoke('outputs:list', code),
+  listAnswerFiles: (code) => ipcRenderer.invoke('answers:list', code),
   openPath: (path) => ipcRenderer.invoke('files:open', path),
   showInFolder: (path) => ipcRenderer.invoke('files:showInFolder', path),
   getPathForFile: (file) => webUtils.getPathForFile(file),
@@ -35,7 +36,8 @@ const api: TaskQueueApi = {
   getCommit: (code) => ipcRenderer.invoke('tasks:commit', code),
   pickPath: (kind) => ipcRenderer.invoke('dialog:pickPath', kind),
   onTaskChanged: (cb) => subscribe<Task>('task:changed', cb),
-  onTaskEvent: (cb) => subscribe<TaskEvent>('task:event', cb)
+  onTaskEvent: (cb) => subscribe<TaskEvent>('task:event', cb),
+  onTaskDone: (cb) => subscribe<Task>('task:done', cb)
 }
 
 contextBridge.exposeInMainWorld('api', api)

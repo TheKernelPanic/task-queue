@@ -49,6 +49,7 @@ export interface RunContext {
   /** Internal folders outside the project the agent must be able to read/write. */
   resourcesDir: string
   outputsDir: string
+  answersDir: string
 }
 
 export interface AgentAdapter {
@@ -69,7 +70,7 @@ export function systemInstructions(code: string): string {
   return [
     `You are executing task ${code} from TaskQueue.`,
     `1. Call the TaskQueue MCP tool get_task with code "${code}" to read the instructions.`,
-    '2. If the task lists procedures, read each one with get_procedure and follow them as part of the work.',
+    '2. get_task includes the procedures to follow, with their full instructions; follow them as part of the work.',
     `3. Call start_task with code "${code}" before doing any work.`,
     '4. Do the work in the current working directory. Use the files listed in "resources" (absolute paths) as inputs.',
     '   Files you generate that do not belong to the project (reports, exports, images…) go in "outputDir".',

@@ -8,6 +8,7 @@ import {
   type TaskStatus
 } from '@shared/types'
 import CommitView from './CommitView'
+import DropZone from './DropZone'
 import FilesView from './FilesView'
 import HistoryView from './HistoryView'
 import Markdown from './Markdown'
@@ -38,11 +39,12 @@ export default function TaskDetail({ task, agents, procedures, onOpenProcedure }
   const [tab, setTab] = useState<Tab>('prompt')
   const [editing, setEditing] = useState(false)
   const [answer, setAnswer] = useState('')
+  const [answerPaths, setAnswerPaths] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
 
   const editable = isTaskEditable(task)
   const agentName = agents.find((a) => a.id === task.agent)?.name ?? task.agent
-  const procedureTitles = new Map(procedures.map((p) => [p.code, p.title]))
+  const currentProcedures = new Map(procedures.map((p) => [p.code, p]))
 
   async function run(action: () => Promise<unknown>) {
     setError(null)
@@ -86,13 +88,31 @@ export default function TaskDetail({ task, agents, procedures, onOpenProcedure }
           <strong>El agente pregunta:</strong>
           <Markdown>{task.question}</Markdown>
           <textarea value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Tu respuesta…" />
+          <DropZone onPaths={(paths) => setAnswerPaths((prev) => [...new Set([...prev, ...paths])])} />
+          {answerPaths.length > 0 && (
+            <ul className="file-list">
+              {answerPaths.map((p) => (
+                <li key={p}>
+                  <span title={p}>{p.split(/[\\/]/).pop()}</span>
+                  <span className="spacer" />
+                  <button
+                    className="icon danger"
+                    onClick={() => setAnswerPaths((prev) => prev.filter((x) => x !== p))}
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           <button
             className="primary"
-            disabled={!answer.trim()}
+            disabled={!answer.trim() && answerPaths.length === 0}
             onClick={() =>
               run(async () => {
-                await window.api.answerQuestion(task.code, answer.trim())
+                await window.api.answerQuestion(task.code, answer.trim(), answerPaths)
                 setAnswer('')
+                setAnswerPaths([])
               })
             }
           >
@@ -139,20 +159,40 @@ export default function TaskDetail({ task, agents, procedures, onOpenProcedure }
                   <div className="linked-procedures">
                     <div className="field-label">Procedimientos</div>
                     <ol>
-                      {task.procedures.map((code) => (
-                        <li key={code}>
-                          <a
-                            href="#"
-                            onClick={(e) => {
-                              e.preventDefault()
-                              onOpenProcedure(code)
-                            }}
-                          >
-                            <code>{code}</code> {procedureTitles.get(code)}
-                          </a>
-                        </li>
-                      ))}
+                      {task.procedures.map((code) => {
+                        const frozen = task.procedureSnapshots.find((p) => p.code === code)
+                        const current = currentProcedures.get(code)
+                        // SQLite timestamps ('YYYY-MM-DD HH:MM:SS') compare correctly as strings.
+                        const changed = frozen && current && current.updatedAt > frozen.snapshotAt
+                        return (
+                          <li key={code}>
+                            <details>
+                              <summary>
+                                <code>{code}</code> {frozen?.title ?? current?.title}
+                                {frozen && <span className="muted small"> · copia del {frozen.snapshotAt}</span>}
+                                {changed && <span className="warn small"> · modificado después de encolar</span>}
+                              </summary>
+                              <Markdown>{frozen?.prompt ?? current?.prompt ?? ''}</Markdown>
+                              <a
+                                href="#"
+                                className="small"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  onOpenProcedure(code)
+                                }}
+                              >
+                                Ver procedimiento actual
+                              </a>
+                            </details>
+                          </li>
+                        )
+                      })}
                     </ol>
+                    {task.procedureSnapshots.length > 0 && (
+                      <p className="muted small">
+                        El agente sigue la copia tomada al encolar la tarea, no la versión actual.
+                      </p>
+                    )}
                   </div>
                 )}
               </>

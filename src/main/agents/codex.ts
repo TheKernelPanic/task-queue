@@ -10,7 +10,7 @@ export const codexAdapter: AgentAdapter = {
   name: 'Codex',
   executable: 'codex',
 
-  buildArgs({ task, project, mcp, prompt, resumeSessionId, resourcesDir, outputsDir }) {
+  buildArgs({ task, project, mcp, prompt, resumeSessionId, resourcesDir, outputsDir, answersDir }) {
     const server = `mcp_servers.${MCP_SERVER_NAME}`
     const args = [
       'exec',
@@ -24,6 +24,8 @@ export const codexAdapter: AgentAdapter = {
       resourcesDir,
       '--add-dir',
       outputsDir,
+      '--add-dir',
+      answersDir,
       ...(project.permissionMode === 'bypassPermissions'
         ? ['--dangerously-bypass-approvals-and-sandbox']
         : ['--full-auto']),

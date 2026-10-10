@@ -44,6 +44,8 @@ export interface Task {
   commitHash: string | null
   /** Codes of the procedures the agent must follow, in order. */
   procedures: string[]
+  /** Copies of the linked procedures taken when the task was first queued (empty until then). */
+  procedureSnapshots: ProcedureSnapshot[]
   createdAt: string
   updatedAt: string
 }
@@ -56,6 +58,14 @@ export interface Procedure {
   projectIds: number[]
   createdAt: string
   updatedAt: string
+}
+
+/** A procedure frozen into a task when it is queued; the agent follows this version. */
+export interface ProcedureSnapshot {
+  code: string
+  title: string
+  prompt: string
+  snapshotAt: string
 }
 
 export interface ProcedureInput {
@@ -189,7 +199,8 @@ export interface TaskQueueApi {
   createTask(input: NewTask): Promise<Task>
   updateTask(code: string, patch: TaskUpdate): Promise<Task>
   setTaskStatus(code: string, status: TaskStatus): Promise<Task>
-  answerQuestion(code: string, answer: string): Promise<Task>
+  /** Answers the agent's question; `paths` are files to attach (copied to the task's answers folder). */
+  answerQuestion(code: string, answer: string, paths: string[]): Promise<Task>
   listProcedures(): Promise<Procedure[]>
   createProcedure(input: ProcedureInput): Promise<Procedure>
   updateProcedure(code: string, input: ProcedureInput): Promise<Procedure>
@@ -198,6 +209,7 @@ export interface TaskQueueApi {
   addResources(code: string, paths: string[]): Promise<TaskFile[]>
   removeResource(code: string, name: string): Promise<TaskFile[]>
   listOutputs(code: string): Promise<TaskFile[]>
+  listAnswerFiles(code: string): Promise<TaskFile[]>
   /** Opens a file or folder of the internal storage with the OS default app. */
   openPath(path: string): Promise<void>
   /** Shows a file of the internal storage in the OS file explorer. */
@@ -211,4 +223,6 @@ export interface TaskQueueApi {
   pickPath(kind: 'file' | 'directory'): Promise<string | null>
   onTaskChanged(cb: (task: Task) => void): () => void
   onTaskEvent(cb: (event: TaskEvent) => void): () => void
+  /** Fired once when a task transitions to Done. */
+  onTaskDone(cb: (task: Task) => void): () => void
 }

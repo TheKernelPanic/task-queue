@@ -13,7 +13,7 @@ import { adapters, resolveAgentPath } from './agents'
 import type { UsageReport } from './agents/types'
 import { commitTask, getCommit as gitGetCommit } from './git'
 import { getMcpEndpoint } from './mcp'
-import { outputsDir, resourcesDir } from './storage'
+import { addAnswerFiles, answersDir, outputsDir, resourcesDir } from './storage'
 
 const POLL_MS = 3000
 
@@ -154,7 +154,8 @@ async function launch(task: Task): Promise<void> {
     prompt: buildPrompt(task),
     resumeSessionId: task.sessionId,
     resourcesDir: resourcesDir(task.code, true),
-    outputsDir: outputsDir(task.code, true)
+    outputsDir: outputsDir(task.code, true),
+    answersDir: answersDir(task.code, true)
   })
 
   db.addEvent(
@@ -320,18 +321,31 @@ export function setStatus(code: string, status: TaskStatus): Task {
     killTree(run.child)
   }
 
+  if (task.status === 'Created' && status === 'Pending') {
+    // From now on the task follows these versions even if the procedures are edited.
+    db.snapshotTaskProcedures(code)
+  }
+
   db.addEvent(code, 'system', `Status changed manually: ${task.status} → ${status}`)
   const updated = db.patchTask(code, { status })
   if (status === 'Pending') void tick()
   return updated
 }
 
-export function answerQuestion(code: string, answer: string): Task {
+export function answerQuestion(code: string, answer: string, paths: string[] = []): Task {
   const task = db.getTask(code)
   if (!task) throw new Error(`Task ${code} not found`)
   if (task.status !== 'WaitingForInput') throw new Error(`Task ${code} is not waiting for input`)
-  db.addEvent(code, 'system', `User answer: ${answer}`)
-  const updated = db.patchTask(code, { answer, status: 'Pending' })
+  if (!answer.trim() && paths.length === 0) throw new Error('La respuesta está vacía')
+
+  // Attached files are stored apart from the (locked) resources; the answer lists their absolute paths.
+  const attached = paths.length > 0 ? addAnswerFiles(code, paths) : []
+  const fullAnswer = attached.length
+    ? `${answer.trim()}\n\nAttached files:\n${attached.map((p) => `- ${p}`).join('\n')}`.trim()
+    : answer.trim()
+
+  db.addEvent(code, 'system', `User answer: ${fullAnswer}`)
+  const updated = db.patchTask(code, { answer: fullAnswer, status: 'Pending' })
   void tick()
   return updated
 }

@@ -31,16 +31,17 @@ Un **procedimiento** (`PR-0001`, …) es un bloque reutilizable de instrucciones
 
 Cada procedimiento pertenece a uno o varios proyectos, y como mínimo a uno. Una tarea solo puede vincular procedimientos de su propio proyecto. No se puede quitar un proyecto de un procedimiento mientras alguna tarea de ese proyecto lo use.
 
-Al crear o editar una tarea se le pueden vincular procedimientos, en orden. `get_task` devuelve la lista (código y título) y el agente lee cada uno con la tool MCP `get_procedure`. El agente siempre lee la versión actual del procedimiento. Un procedimiento vinculado a alguna tarea no se puede eliminar.
+Al crear o editar una tarea se le pueden vincular procedimientos, en orden. Al encolar la tarea (Created → Pending) se guarda una **copia** de cada procedimiento vinculado. `get_task` devuelve los procedimientos con sus instrucciones completas tomadas de esa copia, así que editar un procedimiento no afecta a las tareas ya encoladas. La ficha avisa si el procedimiento se ha modificado después. `get_procedure(code, task_code?)` devuelve la copia de la tarea si se le pasa `task_code`. Un procedimiento vinculado a alguna tarea no se puede eliminar.
 
 ### Recursos y outputs
 
 Cada tarea tiene dos carpetas internas en `%APPDATA%/task-queue/storage/`:
 
 - `resources/<TAREA>/`: ficheros que el usuario suelta en la tarea (pestaña **Ficheros**, o al crearla). Se copian ahí y, si un nombre ya existe, se renombra (`data (1).csv`). `get_task` devuelve sus rutas absolutas en `resources`.
+- `answers/<TAREA>/`: ficheros adjuntados al responder una pregunta del agente. Los recursos quedan bloqueados al encolar, así que esta es la vía para darle ficheros nuevos. Sus rutas absolutas van en la respuesta y en `get_task` (`answerFiles`).
 - `outputs/<TAREA>/`: ficheros que genera el agente y que no pertenecen al proyecto. `get_task` devuelve la ruta en `outputDir`. No entran en el commit.
 
-El agente se lanza con ambas carpetas como directorios adicionales (`--add-dir`), así que tiene acceso completo incluso en modo `acceptEdits`.
+El agente se lanza con las tres carpetas como directorios adicionales (`--add-dir`), así que tiene acceso completo incluso en modo `acceptEdits`.
 
 ### Consumo
 
@@ -54,7 +55,9 @@ Claude Code informa del coste, del desglose por modelo y del tiempo de API acumu
 
 ### Preguntas al usuario
 
-Si el agente necesita una decisión, llama a `ask_user` y termina su turno. La tarea pasa a `WaitingForInput` y la pregunta aparece en la ficha. Al responder, la tarea vuelve a `Pending` y el agente se reanuda en la misma sesión (`--resume`) con la respuesta.
+Si el agente necesita una decisión, llama a `ask_user` y termina su turno. La tarea pasa a `WaitingForInput` y la pregunta aparece en la ficha. Se pueden adjuntar ficheros a la respuesta. Al responder, la tarea vuelve a `Pending` y el agente se reanuda en la misma sesión (`--resume`) con la respuesta.
+
+Cuando una tarea pasa a `Done`, la aplicación reproduce un aviso sonoro.
 
 ### Estados
 

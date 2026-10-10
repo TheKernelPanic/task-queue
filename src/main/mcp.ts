@@ -4,8 +4,9 @@ import type { AddressInfo } from 'node:net'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { z } from 'zod'
+import type { Task } from '@shared/types'
 import * as db from './db'
-import { listFiles, outputsDir, resourcesDir } from './storage'
+import { answersDir, listFiles, outputsDir, resourcesDir } from './storage'
 
 export const MCP_SERVER_NAME = 'taskqueue'
 const DEFAULT_PORT = 47821
@@ -30,6 +31,15 @@ function fail(value: string) {
   return { content: [{ type: 'text' as const, text: value }], isError: true }
 }
 
+/** Procedures of a task with full instructions: the frozen copy if queued, else the current version. */
+function taskProcedures(task: Task) {
+  return task.procedures.map((code) => {
+    const frozen = task.procedureSnapshots.find((p) => p.code === code)
+    const source = frozen ?? db.getProcedure(code)
+    return { code, title: source?.title, prompt: source?.prompt }
+  })
+}
+
 function buildServer(): McpServer {
   const server = new McpServer({ name: 'TaskQueue', version: '0.1.0' })
 
@@ -38,7 +48,7 @@ function buildServer(): McpServer {
     {
       title: 'Get task',
       description:
-        'Returns the instructions of a TaskQueue task: title, prompt, project path, required procedures, absolute paths of the resource files attached to the task, the output directory for generated files that do not belong to the project and, if the task was resumed after a question, the answer from the user. Read every listed procedure with get_procedure and follow it.',
+        'Returns the instructions of a TaskQueue task: title, prompt, project path, the procedures to follow (with their full instructions), absolute paths of the resource files attached to the task, the output directory for generated files that do not belong to the project and, if the task was resumed after a question, the answer from the user and any files attached to answers.',
       inputSchema: { code: z.string().describe('Task code, e.g. DK-0001') }
     },
     async ({ code }) => {
@@ -53,11 +63,12 @@ function buildServer(): McpServer {
             status: task.status,
             projectPath: project?.path,
             prompt: task.prompt,
-            procedures: task.procedures.map((p) => ({ code: p, title: db.getProcedure(p)?.title })),
+            procedures: taskProcedures(task),
             resources: listFiles(resourcesDir(task.code)).map((f) => f.path),
             outputDir: outputsDir(task.code, true),
             previousQuestion: task.question,
-            answer: task.answer
+            answer: task.answer,
+            answerFiles: listFiles(answersDir(task.code)).map((f) => f.path)
           },
           null,
           2
@@ -71,10 +82,18 @@ function buildServer(): McpServer {
     {
       title: 'Get procedure',
       description:
-        'Returns a reusable TaskQueue procedure (title and Markdown instructions) by its code, e.g. PR-0001. Tasks reference the procedures the agent must follow.',
-      inputSchema: { code: z.string().describe('Procedure code, e.g. PR-0001') }
+        'Returns a reusable TaskQueue procedure (title and Markdown instructions) by its code, e.g. PR-0001. Pass task_code to get the version frozen into that task when it was queued, which is the one to follow.',
+      inputSchema: {
+        code: z.string().describe('Procedure code, e.g. PR-0001'),
+        task_code: z.string().optional().describe('Task code, to get the version frozen into the task')
+      }
     },
-    async ({ code }) => {
+    async ({ code, task_code }) => {
+      const task = task_code ? db.getTask(task_code) : null
+      const frozen = task?.procedureSnapshots.find((p) => p.code === code)
+      if (frozen) {
+        return text(JSON.stringify({ code, title: frozen.title, prompt: frozen.prompt }, null, 2))
+      }
       const procedure = db.getProcedure(code)
       if (!procedure) return fail(`Procedure ${code} not found`)
       return text(

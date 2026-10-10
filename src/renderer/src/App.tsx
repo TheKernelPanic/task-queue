@@ -6,6 +6,7 @@ import ProjectForm from './components/ProjectForm'
 import StatusBadge from './components/StatusBadge'
 import TaskDetail from './components/TaskDetail'
 import TaskForm from './components/TaskForm'
+import { playDoneChime } from './sound'
 
 type View =
   | { kind: 'empty' }
@@ -36,7 +37,8 @@ export default function App() {
     void window.api.listTasks().then(setTasks)
     void window.api.listProcedures().then(setProcedures)
 
-    return window.api.onTaskChanged((task) =>
+    const offDone = window.api.onTaskDone(() => playDoneChime())
+    const offChanged = window.api.onTaskChanged((task) =>
       setTasks((prev) => {
         const i = prev.findIndex((t) => t.code === task.code)
         if (i === -1) return [task, ...prev]
@@ -45,6 +47,10 @@ export default function App() {
         return next
       })
     )
+    return () => {
+      offDone()
+      offChanged()
+    }
   }, [])
 
   const project = projects.find((p) => p.id === projectId) ?? null

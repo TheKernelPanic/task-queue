@@ -57,6 +57,7 @@ function FileList({ files, empty, onRemove }: ListProps) {
 export default function FilesView({ task }: { task: Task }) {
   const [resources, setResources] = useState<TaskFile[]>([])
   const [outputs, setOutputs] = useState<TaskFile[]>([])
+  const [answerFiles, setAnswerFiles] = useState<TaskFile[]>([])
   const [error, setError] = useState<string | null>(null)
   const refreshTimer = useRef<number | undefined>(undefined)
 
@@ -66,6 +67,7 @@ export default function FilesView({ task }: { task: Task }) {
 
   useEffect(() => {
     void window.api.listResources(task.code).then(setResources)
+    void window.api.listAnswerFiles(task.code).then(setAnswerFiles)
     refreshOutputs()
   }, [task.code, task.status, refreshOutputs])
 
@@ -126,6 +128,14 @@ export default function FilesView({ task }: { task: Task }) {
           }
         />
       </section>
+
+      {answerFiles.length > 0 && (
+        <section>
+          <div className="section-title">Adjuntos de respuestas</div>
+          <p className="muted small">Ficheros enviados al responder preguntas del agente.</p>
+          <FileList files={answerFiles} empty="" />
+        </section>
+      )}
 
       <section>
         <div className="section-title">

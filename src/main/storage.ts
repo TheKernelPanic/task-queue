@@ -6,6 +6,7 @@ import type { TaskFile } from '@shared/types'
  * Internal file storage, one folder per task:
  *   <root>/resources/<TASK>/  files dropped by the user for the agent to use
  *   <root>/outputs/<TASK>/    files the agent produces that don't belong to the project
+ *   <root>/answers/<TASK>/    files the user attached when answering the agent's questions
  */
 let root: string
 
@@ -15,9 +16,12 @@ export function initStorage(dir: string): void {
   root = resolve(dir)
   mkdirSync(join(root, 'resources'), { recursive: true })
   mkdirSync(join(root, 'outputs'), { recursive: true })
+  mkdirSync(join(root, 'answers'), { recursive: true })
 }
 
-function taskDir(kind: 'resources' | 'outputs', code: string, create: boolean): string {
+type Kind = 'resources' | 'outputs' | 'answers'
+
+function taskDir(kind: Kind, code: string, create: boolean): string {
   if (!TASK_CODE.test(code)) throw new Error(`Invalid task code: ${code}`)
   const dir = join(root, kind, code)
   if (create) mkdirSync(dir, { recursive: true })
@@ -26,6 +30,7 @@ function taskDir(kind: 'resources' | 'outputs', code: string, create: boolean): 
 
 export const resourcesDir = (code: string, create = false) => taskDir('resources', code, create)
 export const outputsDir = (code: string, create = false) => taskDir('outputs', code, create)
+export const answersDir = (code: string, create = false) => taskDir('answers', code, create)
 
 /** Lists files recursively; `name` is relative to the task folder. */
 export function listFiles(dir: string): TaskFile[] {
@@ -61,14 +66,25 @@ function freeName(dir: string, name: string): string {
   }
 }
 
-/** Copies files or folders into the task's resources folder, renaming on collision. */
-export function addResources(code: string, sources: string[]): TaskFile[] {
-  const dir = resourcesDir(code, true)
-  for (const source of sources) {
+/** Copies files or folders into `dir`, renaming on collision. Returns the absolute target paths. */
+function copyInto(dir: string, sources: string[]): string[] {
+  return sources.map((source) => {
     const target = join(dir, freeName(dir, basename(source)))
     cpSync(source, target, { recursive: true, errorOnExist: true })
-  }
+    return target
+  })
+}
+
+/** Copies files or folders into the task's resources folder. */
+export function addResources(code: string, sources: string[]): TaskFile[] {
+  const dir = resourcesDir(code, true)
+  copyInto(dir, sources)
   return listFiles(dir)
+}
+
+/** Copies files attached to an answer into the task's answers folder; returns their absolute paths. */
+export function addAnswerFiles(code: string, sources: string[]): string[] {
+  return copyInto(answersDir(code, true), sources)
 }
 
 /** Resolves a path relative to a task folder, refusing anything that escapes it. */

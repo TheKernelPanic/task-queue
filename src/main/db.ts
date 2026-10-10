@@ -5,6 +5,7 @@ import type {
   NewTask,
   Procedure,
   ProcedureInput,
+  ProcedureSnapshot,
   Project,
   RunStatus,
   Task,
@@ -18,7 +19,10 @@ import type {
 const TASK_PREFIX = 'DK'
 const PROCEDURE_PREFIX = 'PR'
 
-/** Emits 'task' (Task), 'event' (TaskEvent) and 'run' (TaskRun) whenever data changes. */
+/**
+ * Emits 'task' (Task), 'event' (TaskEvent) and 'run' (TaskRun) whenever data changes,
+ * and 'done' (Task) when a task transitions to Done.
+ */
 export const bus = new EventEmitter()
 
 let db: DatabaseSync
@@ -112,6 +116,18 @@ export function openDatabase(file: string): void {
 
     CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_code, id);
   `)
+
+  // Columns added after the first release.
+  addColumn('task_procedures', 'snapshot_title', 'TEXT')
+  addColumn('task_procedures', 'snapshot_prompt', 'TEXT')
+  addColumn('task_procedures', 'snapshot_at', 'TEXT')
+}
+
+function addColumn(table: string, column: string, definition: string): void {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
+  if (!columns.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`)
+  }
 }
 
 type Row = Record<string, unknown>
@@ -141,6 +157,7 @@ function toTask(r: Row): Task {
     sessionId: (r.session_id as string) ?? null,
     commitHash: (r.commit_hash as string) ?? null,
     procedures: taskProcedureCodes(r.code as string),
+    procedureSnapshots: taskProcedureSnapshots(r.code as string),
     createdAt: r.created_at as string,
     updatedAt: r.updated_at as string
   }
@@ -216,6 +233,33 @@ function transaction<T>(fn: () => T): T {
   }
 }
 
+function taskProcedureSnapshots(taskCode: string): ProcedureSnapshot[] {
+  return (
+    db
+      .prepare(
+        `SELECT procedure_code, snapshot_title, snapshot_prompt, snapshot_at FROM task_procedures
+         WHERE task_code = ? AND snapshot_at IS NOT NULL ORDER BY position`
+      )
+      .all(taskCode) as Row[]
+  ).map((r) => ({
+    code: r.procedure_code as string,
+    title: r.snapshot_title as string,
+    prompt: r.snapshot_prompt as string,
+    snapshotAt: r.snapshot_at as string
+  }))
+}
+
+/** Freezes the current version of every linked procedure that has no copy yet. */
+export function snapshotTaskProcedures(taskCode: string): void {
+  db.prepare(
+    `UPDATE task_procedures SET
+       snapshot_title = (SELECT title FROM procedures WHERE code = procedure_code),
+       snapshot_prompt = (SELECT prompt FROM procedures WHERE code = procedure_code),
+       snapshot_at = datetime('now')
+     WHERE task_code = ? AND snapshot_at IS NULL`
+  ).run(taskCode)
+}
+
 function taskProcedureCodes(taskCode: string): string[] {
   return (
     db
@@ -284,6 +328,7 @@ export type TaskPatch = TaskUpdate &
 
 export function patchTask(code: string, patch: TaskPatch): Task {
   const entries = Object.entries(patch).filter(([k, v]) => v !== undefined && k in COLUMN_MAP)
+  const previousStatus = patch.status ? getTask(code)?.status : undefined
   const task = transaction(() => {
     if (entries.length > 0) {
       const sets = entries.map(([k]) => `${COLUMN_MAP[k]} = ?`).join(', ')
@@ -301,6 +346,9 @@ export function patchTask(code: string, patch: TaskPatch): Task {
   })
   if (!task) throw new Error(`Task ${code} not found`)
   bus.emit('task', task)
+  if (task.status === 'Done' && previousStatus !== undefined && previousStatus !== 'Done') {
+    bus.emit('done', task)
+  }
   return task
 }
 

@@ -78,8 +78,8 @@ function registerIpc(): void {
   ipcMain.handle('tasks:setStatus', (_e, code: string, status: TaskStatus) =>
     queue.setStatus(code, status)
   )
-  ipcMain.handle('tasks:answer', (_e, code: string, answer: string) =>
-    queue.answerQuestion(code, answer)
+  ipcMain.handle('tasks:answer', (_e, code: string, answer: string, paths: string[]) =>
+    queue.answerQuestion(code, answer, paths)
   )
   ipcMain.handle('procedures:list', () => db.listProcedures())
   ipcMain.handle('procedures:create', (_e, input: ProcedureInput) => db.createProcedure(input))
@@ -100,6 +100,7 @@ function registerIpc(): void {
     return storage.removeResource(code, name)
   })
   ipcMain.handle('outputs:list', (_e, code: string) => storage.listFiles(storage.outputsDir(code)))
+  ipcMain.handle('answers:list', (_e, code: string) => storage.listFiles(storage.answersDir(code)))
   ipcMain.handle('files:open', async (_e, path: string) => {
     if (!storage.isStoragePath(path)) throw new Error('Ruta fuera del almacenamiento interno')
     const error = await shell.openPath(path)
@@ -124,7 +125,11 @@ function registerIpc(): void {
   db.bus.on('task', (task) => mainWindow?.webContents.send('task:changed', task))
   db.bus.on('event', (event) => mainWindow?.webContents.send('task:event', event))
   db.bus.on('run', (run) => mainWindow?.webContents.send('task:run', run))
+  db.bus.on('done', (task) => mainWindow?.webContents.send('task:done', task))
 }
+
+// The Done chime must play even if the window never received a user gesture.
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
 
 app.whenReady().then(async () => {
   db.openDatabase(join(app.getPath('userData'), 'taskqueue.db'))
