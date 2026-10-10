@@ -16,8 +16,9 @@ import Markdown from './Markdown'
 import StatusBadge from './StatusBadge'
 import TaskForm from './TaskForm'
 import UsageView from './UsageView'
+import WorkspaceView from './WorkspaceView'
 
-type Tab = 'prompt' | 'files' | 'summary' | 'history' | 'usage' | 'commit'
+type Tab = 'prompt' | 'files' | 'workspace' | 'summary' | 'history' | 'usage' | 'commit'
 
 const ACTION_LABELS: Record<TaskStatus, string> = {
   Created: 'Creada',
@@ -155,6 +156,7 @@ export default function TaskDetail({ task, agents, procedures, onOpenProcedure }
               [
                 ['prompt', 'Prompt'],
                 ['files', 'Ficheros'],
+                ['workspace', 'Workspace'],
                 ['summary', 'Resumen'],
                 ['history', 'History'],
                 ['usage', 'Consumo'],
@@ -213,6 +215,7 @@ export default function TaskDetail({ task, agents, procedures, onOpenProcedure }
               </>
             )}
             {tab === 'files' && <FilesView task={task} />}
+            {tab === 'workspace' && <WorkspaceView task={task} />}
             {tab === 'summary' &&
               (task.summary ? <Markdown>{task.summary}</Markdown> : <p className="muted">Sin resumen todavía.</p>)}
             {tab === 'history' && <HistoryView code={task.code} />}

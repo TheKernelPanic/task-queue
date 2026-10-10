@@ -6,7 +6,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { z } from 'zod'
 import type { Task } from '@shared/types'
 import * as db from './db'
-import { answersDir, listFiles, outputsDir, resourcesDir } from './storage'
+import { answersDir, listFiles, outputsDir, resourcesDir, workspaceDir } from './storage'
 
 export const MCP_SERVER_NAME = 'taskqueue'
 const DEFAULT_PORT = 47821
@@ -48,7 +48,7 @@ function buildServer(): McpServer {
     {
       title: 'Get task',
       description:
-        'Returns the instructions of a TaskQueue task: title, prompt, project path, the procedures to follow (with their full instructions), absolute paths of the resource files attached to the task, the output directory for generated files that do not belong to the project and, if the task was resumed after a question, the answer from the user and any files attached to answers.',
+        'Returns the instructions of a TaskQueue task: title, prompt, project path, the procedures to follow (with their full instructions), absolute paths of the resource files attached to the task, the output directory for deliverable files that do not belong to the project, the working directory for any other work outside the project (backups, scratch files, temporary clones…) and, if the task was resumed after a question, the answer from the user and any files attached to answers.',
       inputSchema: { code: z.string().describe('Task code, e.g. DK-0001') }
     },
     async ({ code }) => {
@@ -66,6 +66,7 @@ function buildServer(): McpServer {
             procedures: taskProcedures(task),
             resources: listFiles(resourcesDir(task.code)).map((f) => f.path),
             outputDir: outputsDir(task.code, true),
+            workspaceDir: workspaceDir(task.code, true),
             previousQuestion: task.question,
             answer: task.answer,
             answerFiles: listFiles(answersDir(task.code)).map((f) => f.path)

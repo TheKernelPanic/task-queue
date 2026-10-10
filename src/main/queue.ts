@@ -19,7 +19,8 @@ import {
   answersDir,
   outputsDir,
   removeTaskFolders,
-  resourcesDir
+  resourcesDir,
+  workspaceDir
 } from './storage'
 
 const POLL_MS = 3000
@@ -162,7 +163,8 @@ async function launch(task: Task): Promise<void> {
     resumeSessionId: task.sessionId,
     resourcesDir: resourcesDir(task.code, true),
     outputsDir: outputsDir(task.code, true),
-    answersDir: answersDir(task.code, true)
+    answersDir: answersDir(task.code, true),
+    workspaceDir: workspaceDir(task.code, true)
   })
 
   db.addEvent(

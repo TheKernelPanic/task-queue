@@ -7,6 +7,7 @@ import {
   type NewTask,
   type ProcedureInput,
   type Task,
+  type TaskFolderKind,
   type TaskStatus,
   type TaskUpdate
 } from '@shared/types'
@@ -18,6 +19,8 @@ import * as storage from './storage'
 import * as queue from './queue'
 
 let mainWindow: BrowserWindow | null = null
+
+const WORKSPACE_LIST_LIMIT = 2000
 
 function editableTask(code: string): Task {
   const task = db.getTask(code)
@@ -102,6 +105,14 @@ function registerIpc(): void {
   })
   ipcMain.handle('outputs:list', (_e, code: string) => storage.listFiles(storage.outputsDir(code)))
   ipcMain.handle('answers:list', (_e, code: string) => storage.listFiles(storage.answersDir(code)))
+  ipcMain.handle('workspace:list', (_e, code: string) =>
+    storage.listFilesCapped(storage.workspaceDir(code), WORKSPACE_LIST_LIMIT)
+  )
+  ipcMain.handle('folders:open', async (_e, code: string, kind: TaskFolderKind) => {
+    if (!db.getTask(code)) throw new Error(`Task ${code} not found`)
+    const error = await shell.openPath(storage.taskDir(kind, code, true))
+    if (error) throw new Error(error)
+  })
   ipcMain.handle('files:open', async (_e, path: string) => {
     if (!storage.isStoragePath(path)) throw new Error('Ruta fuera del almacenamiento interno')
     const error = await shell.openPath(path)

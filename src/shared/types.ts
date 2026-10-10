@@ -74,7 +74,9 @@ export interface ProcedureInput {
   projectIds: number[]
 }
 
-/** A file in a task's internal resources or outputs folder. */
+export type TaskFolderKind = 'resources' | 'outputs' | 'answers' | 'workspace'
+
+/** A file in one of a task's internal folders. */
 export interface TaskFile {
   /** Path relative to the task folder, with forward slashes. */
   name: string
@@ -217,6 +219,10 @@ export interface TaskQueueApi {
   removeResource(code: string, name: string): Promise<TaskFile[]>
   listOutputs(code: string): Promise<TaskFile[]>
   listAnswerFiles(code: string): Promise<TaskFile[]>
+  /** Files in the task's working directory; capped, `truncated` tells if there were more. */
+  listWorkspace(code: string): Promise<{ files: TaskFile[]; truncated: boolean }>
+  /** Opens one of the task's internal folders in the OS file explorer (creating it if needed). */
+  openTaskFolder(code: string, kind: TaskFolderKind): Promise<void>
   /** Opens a file or folder of the internal storage with the OS default app. */
   openPath(path: string): Promise<void>
   /** Shows a file of the internal storage in the OS file explorer. */

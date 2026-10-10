@@ -1,12 +1,13 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { basename, extname, join, relative, resolve, sep } from 'node:path'
-import type { TaskFile } from '@shared/types'
+import type { TaskFile, TaskFolderKind } from '@shared/types'
 
 /**
  * Internal file storage, one folder per task:
  *   <root>/resources/<TASK>/  files dropped by the user for the agent to use
  *   <root>/outputs/<TASK>/    files the agent produces that don't belong to the project
  *   <root>/answers/<TASK>/    files the user attached when answering the agent's questions
+ *   <root>/workspace/<TASK>/  the agent's working directory outside the project (backups, scratch…)
  */
 let root: string
 
@@ -17,11 +18,10 @@ export function initStorage(dir: string): void {
   mkdirSync(join(root, 'resources'), { recursive: true })
   mkdirSync(join(root, 'outputs'), { recursive: true })
   mkdirSync(join(root, 'answers'), { recursive: true })
+  mkdirSync(join(root, 'workspace'), { recursive: true })
 }
 
-type Kind = 'resources' | 'outputs' | 'answers'
-
-function taskDir(kind: Kind, code: string, create: boolean): string {
+export function taskDir(kind: TaskFolderKind, code: string, create: boolean): string {
   if (!TASK_CODE.test(code)) throw new Error(`Invalid task code: ${code}`)
   const dir = join(root, kind, code)
   if (create) mkdirSync(dir, { recursive: true })
@@ -31,13 +31,24 @@ function taskDir(kind: Kind, code: string, create: boolean): string {
 export const resourcesDir = (code: string, create = false) => taskDir('resources', code, create)
 export const outputsDir = (code: string, create = false) => taskDir('outputs', code, create)
 export const answersDir = (code: string, create = false) => taskDir('answers', code, create)
+export const workspaceDir = (code: string, create = false) => taskDir('workspace', code, create)
 
 /** Lists files recursively; `name` is relative to the task folder. */
 export function listFiles(dir: string): TaskFile[] {
-  if (!existsSync(dir)) return []
+  return listFilesCapped(dir, Infinity).files
+}
+
+/** Like listFiles but stops after `limit` files (working directories can be huge). */
+export function listFilesCapped(dir: string, limit: number): { files: TaskFile[]; truncated: boolean } {
+  if (!existsSync(dir)) return { files: [], truncated: false }
   const files: TaskFile[] = []
+  let truncated = false
   const walk = (current: string) => {
     for (const entry of readdirSync(current, { withFileTypes: true })) {
+      if (files.length >= limit) {
+        truncated = true
+        return
+      }
       const full = join(current, entry.name)
       if (entry.isDirectory()) {
         walk(full)
@@ -53,7 +64,7 @@ export function listFiles(dir: string): TaskFile[] {
     }
   }
   walk(dir)
-  return files.sort((a, b) => a.name.localeCompare(b.name))
+  return { files: files.sort((a, b) => a.name.localeCompare(b.name)), truncated }
 }
 
 function freeName(dir: string, name: string): string {
@@ -87,9 +98,9 @@ export function addAnswerFiles(code: string, sources: string[]): string[] {
   return copyInto(answersDir(code, true), sources)
 }
 
-/** Deletes every internal folder of a task (resources, outputs and answers). */
+/** Deletes every internal folder of a task. */
 export function removeTaskFolders(code: string): void {
-  for (const dir of [resourcesDir(code), outputsDir(code), answersDir(code)]) {
+  for (const dir of [resourcesDir(code), outputsDir(code), answersDir(code), workspaceDir(code)]) {
     rmSync(dir, { recursive: true, force: true })
   }
 }

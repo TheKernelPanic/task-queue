@@ -35,13 +35,14 @@ Al crear o editar una tarea se le pueden vincular procedimientos, en orden. Al e
 
 ### Recursos y outputs
 
-Cada tarea tiene dos carpetas internas en `%APPDATA%/task-queue/storage/`:
+Cada tarea tiene sus carpetas internas en `%APPDATA%/task-queue/storage/`:
 
 - `resources/<TAREA>/`: ficheros que el usuario suelta en la tarea (pestaña **Ficheros**, o al crearla). Se copian ahí y, si un nombre ya existe, se renombra (`data (1).csv`). `get_task` devuelve sus rutas absolutas en `resources`.
 - `answers/<TAREA>/`: ficheros adjuntados al responder una pregunta del agente. Los recursos quedan bloqueados al encolar, así que esta es la vía para darle ficheros nuevos. Sus rutas absolutas van en la respuesta y en `get_task` (`answerFiles`).
-- `outputs/<TAREA>/`: ficheros que genera el agente y que no pertenecen al proyecto. `get_task` devuelve la ruta en `outputDir`. No entran en el commit.
+- `outputs/<TAREA>/`: entregables que genera el agente y que no pertenecen al proyecto. `get_task` devuelve la ruta en `outputDir`. No entran en el commit.
+- `workspace/<TAREA>/`: directorio de trabajo del agente fuera del proyecto, para copias de seguridad, ficheros temporales, clones, etc. `get_task` devuelve la ruta en `workspaceDir`. Su contenido se ve en la pestaña **Workspace**, que lista hasta 2000 ficheros.
 
-El agente se lanza con las tres carpetas como directorios adicionales (`--add-dir`), así que tiene acceso completo incluso en modo `acceptEdits`.
+El agente se lanza con estas carpetas como directorios adicionales (`--add-dir`), así que tiene acceso completo incluso en modo `acceptEdits`.
 
 ### Consumo
 
@@ -80,7 +81,7 @@ src/
     mcp.ts             servidor MCP (Streamable HTTP en 127.0.0.1:47821, con token)
     queue.ts           cola, ejecución de agentes, commit
     git.ts             commit y lectura de diffs
-    storage.ts         carpetas internas de recursos y outputs por tarea
+    storage.ts         carpetas internas por tarea (recursos, adjuntos, outputs, workspace)
     agents/            detección y adaptadores (claude, codex)
   preload/             puente IPC
   renderer/            UI React
