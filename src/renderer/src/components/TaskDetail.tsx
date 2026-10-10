@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import {
+  isTaskDeletable,
   isTaskEditable,
   MANUAL_TRANSITIONS,
   type AgentInfo,
@@ -79,6 +80,20 @@ export default function TaskDetail({ task, agents, procedures, onOpenProcedure }
             </button>
           ))}
           {editable && !editing && <button onClick={() => setEditing(true)}>Editar</button>}
+          {isTaskDeletable(task) && (
+            <button
+              className="danger"
+              onClick={() => {
+                const ok = window.confirm(
+                  `¿Borrar ${task.code} definitivamente?\n\nSe eliminarán su historial, consumo, recursos, ` +
+                    'adjuntos y outputs. Esta acción no se puede deshacer.'
+                )
+                if (ok) void run(() => window.api.deleteTask(task.code))
+              }}
+            >
+              Borrar
+            </button>
+          )}
         </div>
         {error && <div className="error">{error}</div>}
       </header>

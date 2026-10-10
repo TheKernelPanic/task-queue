@@ -17,6 +17,7 @@ const api: TaskQueueApi = {
   createTask: (input) => ipcRenderer.invoke('tasks:create', input),
   updateTask: (code, patch) => ipcRenderer.invoke('tasks:update', code, patch),
   setTaskStatus: (code, status) => ipcRenderer.invoke('tasks:setStatus', code, status),
+  deleteTask: (code) => ipcRenderer.invoke('tasks:delete', code),
   answerQuestion: (code, answer, paths) => ipcRenderer.invoke('tasks:answer', code, answer, paths),
   listProcedures: () => ipcRenderer.invoke('procedures:list'),
   createProcedure: (input) => ipcRenderer.invoke('procedures:create', input),
@@ -36,6 +37,7 @@ const api: TaskQueueApi = {
   getCommit: (code) => ipcRenderer.invoke('tasks:commit', code),
   pickPath: (kind) => ipcRenderer.invoke('dialog:pickPath', kind),
   onTaskChanged: (cb) => subscribe<Task>('task:changed', cb),
+  onTaskDeleted: (cb) => subscribe<string>('task:deleted', cb),
   onTaskEvent: (cb) => subscribe<TaskEvent>('task:event', cb),
   onTaskDone: (cb) => subscribe<Task>('task:done', cb)
 }

@@ -78,6 +78,7 @@ function registerIpc(): void {
   ipcMain.handle('tasks:setStatus', (_e, code: string, status: TaskStatus) =>
     queue.setStatus(code, status)
   )
+  ipcMain.handle('tasks:delete', (_e, code: string) => queue.deleteTask(code))
   ipcMain.handle('tasks:answer', (_e, code: string, answer: string, paths: string[]) =>
     queue.answerQuestion(code, answer, paths)
   )
@@ -126,6 +127,7 @@ function registerIpc(): void {
   db.bus.on('event', (event) => mainWindow?.webContents.send('task:event', event))
   db.bus.on('run', (run) => mainWindow?.webContents.send('task:run', run))
   db.bus.on('done', (task) => mainWindow?.webContents.send('task:done', task))
+  db.bus.on('deleted', (code) => mainWindow?.webContents.send('task:deleted', code))
 }
 
 // The Done chime must play even if the window never received a user gesture.

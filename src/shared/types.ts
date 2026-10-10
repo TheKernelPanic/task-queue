@@ -187,6 +187,11 @@ export function isTaskEditable(task: Pick<Task, 'status'>): boolean {
   return task.status === 'Created'
 }
 
+/** Only cancelled tasks can be deleted. */
+export function isTaskDeletable(task: Pick<Task, 'status'>): boolean {
+  return task.status === 'Cancelled'
+}
+
 export const TASK_LOCKED_MESSAGE = 'La tarea ya se ha encolado y no puede modificarse'
 
 export interface TaskQueueApi {
@@ -199,6 +204,8 @@ export interface TaskQueueApi {
   createTask(input: NewTask): Promise<Task>
   updateTask(code: string, patch: TaskUpdate): Promise<Task>
   setTaskStatus(code: string, status: TaskStatus): Promise<Task>
+  /** Deletes a Cancelled task with its history, runs and internal folders. */
+  deleteTask(code: string): Promise<void>
   /** Answers the agent's question; `paths` are files to attach (copied to the task's answers folder). */
   answerQuestion(code: string, answer: string, paths: string[]): Promise<Task>
   listProcedures(): Promise<Procedure[]>
@@ -222,6 +229,7 @@ export interface TaskQueueApi {
   getCommit(code: string): Promise<CommitInfo | null>
   pickPath(kind: 'file' | 'directory'): Promise<string | null>
   onTaskChanged(cb: (task: Task) => void): () => void
+  onTaskDeleted(cb: (code: string) => void): () => void
   onTaskEvent(cb: (event: TaskEvent) => void): () => void
   /** Fired once when a task transitions to Done. */
   onTaskDone(cb: (task: Task) => void): () => void

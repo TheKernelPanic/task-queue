@@ -87,6 +87,13 @@ export function addAnswerFiles(code: string, sources: string[]): string[] {
   return copyInto(answersDir(code, true), sources)
 }
 
+/** Deletes every internal folder of a task (resources, outputs and answers). */
+export function removeTaskFolders(code: string): void {
+  for (const dir of [resourcesDir(code), outputsDir(code), answersDir(code)]) {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
 /** Resolves a path relative to a task folder, refusing anything that escapes it. */
 function inside(dir: string, name: string): string {
   const full = resolve(dir, name)

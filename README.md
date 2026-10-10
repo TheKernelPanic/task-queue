@@ -65,7 +65,9 @@ Cuando una tarea pasa a `Done`, la aplicación reproduce un aviso sonoro.
 
 Transiciones manuales: detener (`Stopped`, que mata el proceso), cancelar (`Cancelled`) y volver a encolar una tarea detenida.
 
-**Una tarea solo puede modificarse en `Created`.** Eso incluye título, prompt, agente, procedimientos y recursos. Al encolarla queda bloqueada para siempre: no hay transición de vuelta a `Created`, y el backend rechaza cualquier modificación. Si el agente termina sin llamar a `complete_task`, la tarea queda en `Stopped`.
+**Una tarea solo puede modificarse en `Created`.** Eso incluye título, prompt, agente, procedimientos y recursos. Al encolarla queda bloqueada para siempre: no hay transición de vuelta a `Created`, y el backend rechaza cualquier modificación.
+
+**Las tareas canceladas se pueden borrar.** Se elimina la tarea con su historial, consumo y vínculos a procedimientos, y también sus carpetas internas (recursos, adjuntos y outputs). Los commits ya hechos en el proyecto no se tocan, y los códigos de tarea no se reutilizan. Si el agente termina sin llamar a `complete_task`, la tarea queda en `Stopped`.
 
 ## Estructura
 

@@ -1,6 +1,7 @@
 import { spawn, execFile, type ChildProcess } from 'node:child_process'
 import { createInterface } from 'node:readline'
 import {
+  isTaskDeletable,
   MANUAL_TRANSITIONS,
   type ModelUsage,
   type RunStatus,
@@ -13,7 +14,13 @@ import { adapters, resolveAgentPath } from './agents'
 import type { UsageReport } from './agents/types'
 import { commitTask, getCommit as gitGetCommit } from './git'
 import { getMcpEndpoint } from './mcp'
-import { addAnswerFiles, answersDir, outputsDir, resourcesDir } from './storage'
+import {
+  addAnswerFiles,
+  answersDir,
+  outputsDir,
+  removeTaskFolders,
+  resourcesDir
+} from './storage'
 
 const POLL_MS = 3000
 
@@ -330,6 +337,22 @@ export function setStatus(code: string, status: TaskStatus): Task {
   const updated = db.patchTask(code, { status })
   if (status === 'Pending') void tick()
   return updated
+}
+
+export function deleteTask(code: string): void {
+  const task = db.getTask(code)
+  if (!task) throw new Error(`Task ${code} not found`)
+  if (!isTaskDeletable(task)) throw new Error('Solo se pueden borrar tareas canceladas')
+  // A just-cancelled agent may still be shutting down; its close handler updates the task.
+  if (running.has(code)) throw new Error('El agente todavía se está deteniendo; inténtalo en unos segundos')
+
+  // Folders first: if a file is locked (e.g. open in another app) the task is kept intact.
+  try {
+    removeTaskFolders(code)
+  } catch (err) {
+    throw new Error(`No se pudieron borrar los ficheros de la tarea: ${(err as Error).message}`)
+  }
+  db.deleteTask(code)
 }
 
 export function answerQuestion(code: string, answer: string, paths: string[] = []): Task {

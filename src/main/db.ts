@@ -21,7 +21,7 @@ const PROCEDURE_PREFIX = 'PR'
 
 /**
  * Emits 'task' (Task), 'event' (TaskEvent) and 'run' (TaskRun) whenever data changes,
- * and 'done' (Task) when a task transitions to Done.
+ * 'done' (Task) when a task transitions to Done and 'deleted' (task code) when a task is removed.
  */
 export const bus = new EventEmitter()
 
@@ -350,6 +350,12 @@ export function patchTask(code: string, patch: TaskPatch): Task {
     bus.emit('done', task)
   }
   return task
+}
+
+/** Removes a task; events, runs and procedure links go with it (ON DELETE CASCADE). */
+export function deleteTask(code: string): void {
+  db.prepare('DELETE FROM tasks WHERE code = ?').run(code)
+  bus.emit('deleted', code)
 }
 
 /** Oldest Pending tasks first; the queue picks from here. */

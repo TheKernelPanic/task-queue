@@ -38,6 +38,10 @@ export default function App() {
     void window.api.listProcedures().then(setProcedures)
 
     const offDone = window.api.onTaskDone(() => playDoneChime())
+    const offDeleted = window.api.onTaskDeleted((code) => {
+      setTasks((prev) => prev.filter((t) => t.code !== code))
+      setView((v) => (v.kind === 'task' && v.code === code ? { kind: 'empty' } : v))
+    })
     const offChanged = window.api.onTaskChanged((task) =>
       setTasks((prev) => {
         const i = prev.findIndex((t) => t.code === task.code)
@@ -49,6 +53,7 @@ export default function App() {
     )
     return () => {
       offDone()
+      offDeleted()
       offChanged()
     }
   }, [])
