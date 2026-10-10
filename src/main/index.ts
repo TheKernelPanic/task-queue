@@ -1,5 +1,6 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } from 'electron'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import {
   isTaskEditable,
   TASK_LOCKED_MESSAGE,
@@ -23,8 +24,10 @@ import * as updater from './updater'
 const APP_ID = 'com.thekernelpanic.taskqueue'
 
 // Data always lives in %APPDATA%/task-queue, whatever the product name of the build, so dev runs,
-// installed builds and updates all share it. Must be set before anything reads userData.
-app.setPath('userData', join(app.getPath('appData'), 'task-queue'))
+// installed builds and updates all share it. TASKQUEUE_DATA_DIR points it elsewhere (separate
+// data and its own single-instance lock), e.g. to develop without touching real data.
+// Must be set before anything reads userData.
+app.setPath('userData', process.env.TASKQUEUE_DATA_DIR ?? join(app.getPath('appData'), 'task-queue'))
 
 let mainWindow: BrowserWindow | null = null
 
@@ -174,6 +177,21 @@ function registerIpc(): void {
 // The Done chime must play even if the window never received a user gesture.
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
 
+// taskfile://f/?p=<absolute path> lets the UI show images and play audio from the internal
+// storage (and only from there). Must be registered before the app is ready.
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'taskfile', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
+])
+
+function registerTaskFileProtocol(): void {
+  protocol.handle('taskfile', (request) => {
+    const path = new URL(request.url).searchParams.get('p')
+    if (!path || !storage.isStoragePath(path)) return new Response('Forbidden', { status: 403 })
+    // Forward headers so Range requests work for audio seeking.
+    return net.fetch(pathToFileURL(path).toString(), { headers: request.headers })
+  })
+}
+
 // One instance only: two would share the database, the MCP port and the agent queue.
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -192,6 +210,7 @@ async function start(): Promise<void> {
   backupOnVersionChange(dataDir, dbFile, app.getVersion())
   db.openDatabase(dbFile)
   storage.initStorage(join(app.getPath('userData'), 'storage'))
+  registerTaskFileProtocol()
   await startMcpServer()
   registerIpc()
   queue.startQueue()

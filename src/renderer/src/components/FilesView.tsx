@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { isTaskEditable, type Task, type TaskFile } from '@shared/types'
 import DropZone from './DropZone'
-import FileList, { useRefreshOnActivity } from './FileList'
+import FileCards from './FileCards'
+import { useRefreshOnActivity } from './FileList'
 
 function ipcMessage(err: unknown): string {
   return (err as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
@@ -55,7 +56,7 @@ export default function FilesView({ task }: { task: Task }) {
           <DropZone onPaths={(paths) => run(() => window.api.addResources(task.code, paths))} />
         )}
         {error && <div className="error">{error}</div>}
-        <FileList
+        <FileCards
           files={resources}
           empty="Sin recursos."
           onRemove={
@@ -74,7 +75,7 @@ export default function FilesView({ task }: { task: Task }) {
         <section>
           <div className="section-title">Adjuntos de respuestas</div>
           <p className="muted small">Ficheros enviados al responder preguntas del agente.</p>
-          <FileList files={answerFiles} empty="" />
+          <FileCards files={answerFiles} empty="" />
         </section>
       )}
 
@@ -91,7 +92,7 @@ export default function FilesView({ task }: { task: Task }) {
           </span>
         </div>
         <p className="muted small">Entregables generados por el agente que no pertenecen al proyecto.</p>
-        <FileList files={outputs} empty="El agente no ha generado outputs." />
+        <FileCards files={outputs} empty="El agente no ha generado outputs." />
       </section>
     </div>
   )
