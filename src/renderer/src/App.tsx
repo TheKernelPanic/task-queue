@@ -6,6 +6,7 @@ import ProjectForm from './components/ProjectForm'
 import StatusBadge from './components/StatusBadge'
 import TaskDetail from './components/TaskDetail'
 import TaskForm from './components/TaskForm'
+import TaskList from './components/TaskList'
 import UpdateFooter from './components/UpdateFooter'
 import { playDoneChime } from './sound'
 
@@ -205,39 +206,12 @@ export default function App() {
                 Nueva tarea
               </button>
             </div>
-            <table className="task-table">
-              <thead>
-                <tr>
-                  <th>Código</th>
-                  <th>Título</th>
-                  <th>Agente</th>
-                  <th>Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {projectTasks.map((t) => (
-                  <tr
-                    key={t.code}
-                    data-status={t.status}
-                    className={view.kind === 'task' && view.code === t.code ? 'selected' : ''}
-                    onClick={() => setView({ kind: 'task', code: t.code })}
-                  >
-                    <td>
-                      <code>{t.code}</code>
-                    </td>
-                    <td>{t.title}</td>
-                    <td>
-                      {t.agent}
-                      {t.model && <span className="muted small"> · {t.model}</span>}
-                    </td>
-                    <td>
-                      <StatusBadge status={t.status} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {projectTasks.length === 0 && <div className="list-empty"><span aria-hidden="true">＋</span><h3>Espacio para tu próxima idea</h3><p className="muted">Crea una tarea para empezar a trabajar en este proyecto.</p></div>}
+            <TaskList
+              key={project.id}
+              tasks={projectTasks}
+              selectedCode={view.kind === 'task' ? view.code : null}
+              onSelect={(code) => setView({ kind: 'task', code })}
+            />
           </>
         ) : (
           <div className="list-empty"><span aria-hidden="true">＋</span><h3>Todo empieza con un proyecto</h3><p className="muted">Añade un proyecto desde la barra lateral para empezar.</p></div>

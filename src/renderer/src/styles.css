@@ -1168,3 +1168,9 @@ label.switch {
 @media (prefers-reduced-motion: reduce) {
   .task-table tr[data-status] td { transition: none; }
 }
+
+/* Task search and infinite scroll */
+.task-search { display: flex; align-items: center; gap: 10px; margin: -12px 0 10px; }
+.task-search input { flex: 1; }
+.task-search .small { white-space: nowrap; }
+.task-list-more { text-align: center; padding: 12px 0; }
