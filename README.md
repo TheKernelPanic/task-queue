@@ -23,13 +23,13 @@ Se guarda en `%APPDATA%/task-queue/taskqueue.db`.
 5. El agente llama a `get_task` (y a `get_procedure` por cada procedimiento vinculado), después a `start_task` (`InProgress`), trabaja y termina con `complete_task` y un resumen en Markdown (`Done`).
 6. La app hace commit de los cambios con el mensaje `DK-0001: <título>` y el resumen.
 
+El stream JSON del agente se guarda en `task_events`, clasificado como `text`, `thinking`, `command`, `output`, `system` o `error`. Se muestra en la pestaña **History** de la tarea.
+
 ### Procedimientos
 
 Un **procedimiento** (`PR-0001`, …) es un bloque reutilizable de instrucciones: título corto y prompt en Markdown, donde también se pueden insertar rutas. Se gestionan desde *Biblioteca → Procedimientos* y pueden editarse en cualquier momento.
 
 Al crear o editar una tarea se le pueden vincular procedimientos, en orden. `get_task` devuelve la lista (código y título) y el agente lee cada uno con la tool MCP `get_procedure`. El agente siempre lee la versión actual del procedimiento. Un procedimiento vinculado a alguna tarea no se puede eliminar.
-
-El stream JSON del agente se guarda en `task_events`, clasificado como `text`, `thinking`, `command`, `output`, `system` o `error`. Se muestra en la pestaña **History** de la tarea.
 
 ### Preguntas al usuario
 
