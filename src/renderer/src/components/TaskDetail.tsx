@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import {
+  isTaskEditable,
   MANUAL_TRANSITIONS,
   type AgentInfo,
   type Procedure,
@@ -17,7 +18,7 @@ import UsageView from './UsageView'
 type Tab = 'prompt' | 'files' | 'summary' | 'history' | 'usage' | 'commit'
 
 const ACTION_LABELS: Record<TaskStatus, string> = {
-  Created: 'Volver a Creada',
+  Created: 'Creada',
   Pending: 'Encolar',
   InProgress: 'En curso',
   WaitingForInput: 'Esperando',
@@ -39,7 +40,7 @@ export default function TaskDetail({ task, agents, procedures, onOpenProcedure }
   const [answer, setAnswer] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  const editable = task.status === 'Created' || task.status === 'Stopped'
+  const editable = isTaskEditable(task)
   const agentName = agents.find((a) => a.id === task.agent)?.name ?? task.agent
   const procedureTitles = new Map(procedures.map((p) => [p.code, p.title]))
 

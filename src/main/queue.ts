@@ -315,7 +315,7 @@ export function setStatus(code: string, status: TaskStatus): Task {
   }
 
   const run = running.get(code)
-  if (run && (status === 'Stopped' || status === 'Cancelled' || status === 'Created')) {
+  if (run && (status === 'Stopped' || status === 'Cancelled')) {
     run.cancelled = true
     killTree(run.child)
   }

@@ -158,16 +158,26 @@ export interface CommitInfo {
   files: { path: string; diff: string }[]
 }
 
-/** Allowed manual transitions from the UI. Agent-driven transitions go through MCP. */
+/**
+ * Allowed manual transitions from the UI. Agent-driven transitions go through MCP.
+ * There is no way back to Created: once queued, a task is never Created again.
+ */
 export const MANUAL_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   Created: ['Pending', 'Cancelled'],
-  Pending: ['Created', 'Cancelled'],
+  Pending: ['Cancelled'],
   InProgress: ['Stopped', 'Cancelled'],
   WaitingForInput: ['Stopped', 'Cancelled'],
   Stopped: ['Pending', 'Cancelled'],
   Done: [],
-  Cancelled: ['Created']
+  Cancelled: []
 }
+
+/** A task (definition, procedures and resources) can only be modified until it is queued. */
+export function isTaskEditable(task: Pick<Task, 'status'>): boolean {
+  return task.status === 'Created'
+}
+
+export const TASK_LOCKED_MESSAGE = 'La tarea ya se ha encolado y no puede modificarse'
 
 export interface TaskQueueApi {
   listAgents(): Promise<AgentInfo[]>

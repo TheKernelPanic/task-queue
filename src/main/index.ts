@@ -1,6 +1,15 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
-import type { NewProject, NewTask, ProcedureInput, TaskStatus, TaskUpdate } from '@shared/types'
+import {
+  isTaskEditable,
+  TASK_LOCKED_MESSAGE,
+  type NewProject,
+  type NewTask,
+  type ProcedureInput,
+  type Task,
+  type TaskStatus,
+  type TaskUpdate
+} from '@shared/types'
 import * as db from './db'
 import { detectAgents } from './agents'
 import { isGitRepo } from './git'
@@ -9,6 +18,13 @@ import * as storage from './storage'
 import * as queue from './queue'
 
 let mainWindow: BrowserWindow | null = null
+
+function editableTask(code: string): Task {
+  const task = db.getTask(code)
+  if (!task) throw new Error(`Task ${code} not found`)
+  if (!isTaskEditable(task)) throw new Error(TASK_LOCKED_MESSAGE)
+  return task
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -51,11 +67,7 @@ function registerIpc(): void {
   ipcMain.handle('tasks:get', (_e, code: string) => db.getTask(code))
   ipcMain.handle('tasks:create', (_e, input: NewTask) => db.createTask(input))
   ipcMain.handle('tasks:update', (_e, code: string, patch: TaskUpdate) => {
-    const task = db.getTask(code)
-    if (!task) throw new Error(`Task ${code} not found`)
-    if (task.status !== 'Created' && task.status !== 'Stopped') {
-      throw new Error(`Only Created or Stopped tasks can be edited`)
-    }
+    editableTask(code)
     return db.patchTask(code, {
       title: patch.title,
       prompt: patch.prompt,
@@ -80,19 +92,11 @@ function registerIpc(): void {
     storage.listFiles(storage.resourcesDir(code))
   )
   ipcMain.handle('resources:add', (_e, code: string, paths: string[]) => {
-    const task = db.getTask(code)
-    if (!task) throw new Error(`Task ${code} not found`)
-    if (task.status === 'Done' || task.status === 'Cancelled') {
-      throw new Error(`No se pueden añadir recursos a una tarea ${task.status}`)
-    }
+    editableTask(code)
     return storage.addResources(code, paths)
   })
   ipcMain.handle('resources:remove', (_e, code: string, name: string) => {
-    const task = db.getTask(code)
-    if (!task) throw new Error(`Task ${code} not found`)
-    if (task.status === 'InProgress') {
-      throw new Error('No se pueden quitar recursos mientras el agente trabaja')
-    }
+    editableTask(code)
     return storage.removeResource(code, name)
   })
   ipcMain.handle('outputs:list', (_e, code: string) => storage.listFiles(storage.outputsDir(code)))

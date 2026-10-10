@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Task, TaskFile } from '@shared/types'
+import { isTaskEditable, type Task, type TaskFile } from '@shared/types'
 import DropZone from './DropZone'
 
 function formatSize(bytes: number): string {
@@ -91,7 +91,7 @@ export default function FilesView({ task }: { task: Task }) {
     }
   }
 
-  const locked = task.status === 'Done' || task.status === 'Cancelled'
+  const locked = !isTaskEditable(task)
 
   return (
     <div className="files-view">
@@ -104,7 +104,10 @@ export default function FilesView({ task }: { task: Task }) {
             </button>
           )}
         </div>
-        <p className="muted small">El agente recibe sus rutas absolutas en las instrucciones de la tarea.</p>
+        <p className="muted small">
+          El agente recibe sus rutas absolutas en las instrucciones de la tarea.
+          {locked && ' La tarea ya se ha encolado: los recursos no pueden modificarse.'}
+        </p>
         {!locked && (
           <DropZone onPaths={(paths) => run(() => window.api.addResources(task.code, paths))} />
         )}

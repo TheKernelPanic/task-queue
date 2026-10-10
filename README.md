@@ -60,7 +60,9 @@ Si el agente necesita una decisión, llama a `ask_user` y termina su turno. La t
 
 `Created → Pending → InProgress → (WaitingForInput ↔ Pending) → Done`
 
-Transiciones manuales: detener (`Stopped`, que mata el proceso), cancelar (`Cancelled`) y volver a encolar una tarea detenida. Si el agente termina sin llamar a `complete_task`, la tarea queda en `Stopped`.
+Transiciones manuales: detener (`Stopped`, que mata el proceso), cancelar (`Cancelled`) y volver a encolar una tarea detenida.
+
+**Una tarea solo puede modificarse en `Created`.** Eso incluye título, prompt, agente, procedimientos y recursos. Al encolarla queda bloqueada para siempre: no hay transición de vuelta a `Created`, y el backend rechaza cualquier modificación. Si el agente termina sin llamar a `complete_task`, la tarea queda en `Stopped`.
 
 ## Estructura
 
