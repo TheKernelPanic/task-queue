@@ -896,3 +896,35 @@ label.switch {
   border-radius: 8px;
   font-size: 12px;
 }
+
+/* Markdown editor preview: black background, white text */
+.prompt-editor .preview {
+  background: #000;
+  color: #fff;
+}
+.prompt-editor .preview .markdown code {
+  background: #262626;
+  color: #fff;
+}
+.prompt-editor .preview .markdown pre {
+  background: #141414;
+  border-color: #333;
+  color: #fff;
+}
+.prompt-editor .preview .markdown pre code {
+  background: none;
+}
+.prompt-editor .preview .markdown blockquote {
+  border-left-color: #555;
+  color: #c4c4c4;
+}
+.prompt-editor .preview .markdown a {
+  color: #8fb0ff;
+}
+.prompt-editor .preview .markdown th,
+.prompt-editor .preview .markdown td {
+  border-color: #333;
+}
+.prompt-editor .preview .markdown hr {
+  border-color: #333;
+}
