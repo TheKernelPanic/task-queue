@@ -3,6 +3,8 @@ import { EventEmitter } from 'node:events'
 import type {
   NewProject,
   NewTask,
+  Procedure,
+  ProcedureInput,
   Project,
   Task,
   TaskEvent,
@@ -11,7 +13,8 @@ import type {
   TaskUpdate
 } from '@shared/types'
 
-const CODE_PREFIX = 'DK'
+const TASK_PREFIX = 'DK'
+const PROCEDURE_PREFIX = 'PR'
 
 /** Emits 'task' (Task) and 'event' (TaskEvent) whenever data changes. */
 export const bus = new EventEmitter()
@@ -62,6 +65,21 @@ export function openDatabase(file: string): void {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS procedures (
+      code TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      prompt TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS task_procedures (
+      task_code TEXT NOT NULL REFERENCES tasks(code) ON DELETE CASCADE,
+      procedure_code TEXT NOT NULL REFERENCES procedures(code),
+      position INTEGER NOT NULL,
+      PRIMARY KEY (task_code, procedure_code)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_code, id);
   `)
 }
@@ -92,6 +110,17 @@ function toTask(r: Row): Task {
     answer: (r.answer as string) ?? null,
     sessionId: (r.session_id as string) ?? null,
     commitHash: (r.commit_hash as string) ?? null,
+    procedures: taskProcedureCodes(r.code as string),
+    createdAt: r.created_at as string,
+    updatedAt: r.updated_at as string
+  }
+}
+
+function toProcedure(r: Row): Procedure {
+  return {
+    code: r.code as string,
+    title: r.title as string,
+    prompt: r.prompt as string,
     createdAt: r.created_at as string,
     updatedAt: r.updated_at as string
   }
@@ -133,15 +162,46 @@ export function deleteProject(id: number): void {
 
 // ---- Tasks ----
 
-function nextCode(): string {
+function nextCode(counter: string, prefix: string): string {
   const r = db
     .prepare(
-      `INSERT INTO counters (name, value) VALUES ('task', 1)
+      `INSERT INTO counters (name, value) VALUES (?, 1)
        ON CONFLICT(name) DO UPDATE SET value = value + 1
        RETURNING value`
     )
-    .get() as Row
-  return `${CODE_PREFIX}-${String(r.value).padStart(4, '0')}`
+    .get(counter) as Row
+  return `${prefix}-${String(r.value).padStart(4, '0')}`
+}
+
+function transaction<T>(fn: () => T): T {
+  db.exec('BEGIN')
+  try {
+    const result = fn()
+    db.exec('COMMIT')
+    return result
+  } catch (err) {
+    db.exec('ROLLBACK')
+    throw err
+  }
+}
+
+function taskProcedureCodes(taskCode: string): string[] {
+  return (
+    db
+      .prepare('SELECT procedure_code FROM task_procedures WHERE task_code = ? ORDER BY position')
+      .all(taskCode) as Row[]
+  ).map((r) => r.procedure_code as string)
+}
+
+function setTaskProcedures(taskCode: string, codes: string[]): void {
+  const unique = [...new Set(codes)]
+  const missing = unique.filter((c) => !getProcedure(c))
+  if (missing.length > 0) throw new Error(`Unknown procedures: ${missing.join(', ')}`)
+  db.prepare('DELETE FROM task_procedures WHERE task_code = ?').run(taskCode)
+  const insert = db.prepare(
+    'INSERT INTO task_procedures (task_code, procedure_code, position) VALUES (?, ?, ?)'
+  )
+  unique.forEach((code, i) => insert.run(taskCode, code, i))
 }
 
 export function listTasks(projectId?: number): Task[] {
@@ -160,13 +220,14 @@ export function getTask(code: string): Task | null {
 }
 
 export function createTask(input: NewTask): Task {
-  const code = nextCode()
-  const r = db
-    .prepare(
-      'INSERT INTO tasks (code, project_id, title, prompt, agent) VALUES (?, ?, ?, ?, ?) RETURNING *'
-    )
-    .get(code, input.projectId, input.title, input.prompt, input.agent) as Row
-  const task = toTask(r)
+  const task = transaction(() => {
+    const code = nextCode('task', TASK_PREFIX)
+    db.prepare(
+      'INSERT INTO tasks (code, project_id, title, prompt, agent) VALUES (?, ?, ?, ?, ?)'
+    ).run(code, input.projectId, input.title, input.prompt, input.agent)
+    setTaskProcedures(code, input.procedures)
+    return getTask(code)!
+  })
   bus.emit('task', task)
   return task
 }
@@ -188,14 +249,17 @@ export type TaskPatch = TaskUpdate &
 
 export function patchTask(code: string, patch: TaskPatch): Task {
   const entries = Object.entries(patch).filter(([k, v]) => v !== undefined && k in COLUMN_MAP)
-  if (entries.length > 0) {
-    const sets = entries.map(([k]) => `${COLUMN_MAP[k]} = ?`).join(', ')
-    db.prepare(`UPDATE tasks SET ${sets}, updated_at = datetime('now') WHERE code = ?`).run(
-      ...entries.map(([, v]) => v as string | null),
-      code
-    )
-  }
-  const task = getTask(code)
+  const task = transaction(() => {
+    if (entries.length > 0) {
+      const sets = entries.map(([k]) => `${COLUMN_MAP[k]} = ?`).join(', ')
+      db.prepare(`UPDATE tasks SET ${sets}, updated_at = datetime('now') WHERE code = ?`).run(
+        ...entries.map(([, v]) => v as string | null),
+        code
+      )
+    }
+    if (patch.procedures) setTaskProcedures(code, patch.procedures)
+    return getTask(code)
+  })
   if (!task) throw new Error(`Task ${code} not found`)
   bus.emit('task', task)
   return task
@@ -206,6 +270,51 @@ export function listPendingTasks(): Task[] {
   return (
     db.prepare("SELECT * FROM tasks WHERE status = 'Pending' ORDER BY updated_at, code").all() as Row[]
   ).map(toTask)
+}
+
+// ---- Procedures ----
+
+export function listProcedures(): Procedure[] {
+  return (db.prepare('SELECT * FROM procedures ORDER BY code').all() as Row[]).map(toProcedure)
+}
+
+export function getProcedure(code: string): Procedure | null {
+  const r = db.prepare('SELECT * FROM procedures WHERE code = ?').get(code) as Row | undefined
+  return r ? toProcedure(r) : null
+}
+
+export function createProcedure(input: ProcedureInput): Procedure {
+  return transaction(() => {
+    const code = nextCode('procedure', PROCEDURE_PREFIX)
+    const r = db
+      .prepare('INSERT INTO procedures (code, title, prompt) VALUES (?, ?, ?) RETURNING *')
+      .get(code, input.title, input.prompt) as Row
+    return toProcedure(r)
+  })
+}
+
+export function updateProcedure(code: string, input: ProcedureInput): Procedure {
+  const r = db
+    .prepare(
+      `UPDATE procedures SET title = ?, prompt = ?, updated_at = datetime('now')
+       WHERE code = ? RETURNING *`
+    )
+    .get(input.title, input.prompt, code) as Row | undefined
+  if (!r) throw new Error(`Procedure ${code} not found`)
+  return toProcedure(r)
+}
+
+/** Procedures referenced by any task cannot be deleted, so task history stays meaningful. */
+export function deleteProcedure(code: string): void {
+  const users = (
+    db
+      .prepare('SELECT task_code FROM task_procedures WHERE procedure_code = ? ORDER BY task_code')
+      .all(code) as Row[]
+  ).map((r) => r.task_code as string)
+  if (users.length > 0) {
+    throw new Error(`${code} está referenciado por: ${users.join(', ')}`)
+  }
+  db.prepare('DELETE FROM procedures WHERE code = ?').run(code)
 }
 
 // ---- Events ----

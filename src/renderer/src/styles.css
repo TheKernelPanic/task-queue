@@ -454,3 +454,39 @@ textarea {
 .diff-file {
   color: var(--muted);
 }
+
+/* Procedures */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.field-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+.procedure-picker ol {
+  margin: 0 0 6px;
+  padding-left: 20px;
+}
+.procedure-picker li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+}
+.procedure-picker .spacer {
+  flex: 1;
+}
+.linked-procedures {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.linked-procedures a {
+  color: var(--text);
+  text-decoration: none;
+}
+.linked-procedures a:hover {
+  color: var(--accent);
+}

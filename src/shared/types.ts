@@ -42,8 +42,23 @@ export interface Task {
   answer: string | null
   sessionId: string | null
   commitHash: string | null
+  /** Codes of the procedures the agent must follow, in order. */
+  procedures: string[]
   createdAt: string
   updatedAt: string
+}
+
+export interface Procedure {
+  code: string
+  title: string
+  prompt: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProcedureInput {
+  title: string
+  prompt: string
 }
 
 export type TaskEventKind = 'text' | 'thinking' | 'command' | 'output' | 'system' | 'error'
@@ -67,12 +82,14 @@ export interface NewTask {
   title: string
   prompt: string
   agent: AgentId
+  procedures: string[]
 }
 
 export interface TaskUpdate {
   title?: string
   prompt?: string
   agent?: AgentId
+  procedures?: string[]
 }
 
 export interface CommitInfo {
@@ -105,6 +122,10 @@ export interface TaskQueueApi {
   updateTask(code: string, patch: TaskUpdate): Promise<Task>
   setTaskStatus(code: string, status: TaskStatus): Promise<Task>
   answerQuestion(code: string, answer: string): Promise<Task>
+  listProcedures(): Promise<Procedure[]>
+  createProcedure(input: ProcedureInput): Promise<Procedure>
+  updateProcedure(code: string, input: ProcedureInput): Promise<Procedure>
+  deleteProcedure(code: string): Promise<void>
   listEvents(code: string): Promise<TaskEvent[]>
   getCommit(code: string): Promise<CommitInfo | null>
   pickPath(kind: 'file' | 'directory'): Promise<string | null>

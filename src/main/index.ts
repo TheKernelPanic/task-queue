@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
-import type { NewProject, NewTask, TaskStatus, TaskUpdate } from '@shared/types'
+import type { NewProject, NewTask, ProcedureInput, TaskStatus, TaskUpdate } from '@shared/types'
 import * as db from './db'
 import { detectAgents } from './agents'
 import { isGitRepo } from './git'
@@ -54,7 +54,12 @@ function registerIpc(): void {
     if (task.status !== 'Created' && task.status !== 'Stopped') {
       throw new Error(`Only Created or Stopped tasks can be edited`)
     }
-    return db.patchTask(code, { title: patch.title, prompt: patch.prompt, agent: patch.agent })
+    return db.patchTask(code, {
+      title: patch.title,
+      prompt: patch.prompt,
+      agent: patch.agent,
+      procedures: patch.procedures
+    })
   })
   ipcMain.handle('tasks:setStatus', (_e, code: string, status: TaskStatus) =>
     queue.setStatus(code, status)
@@ -62,6 +67,13 @@ function registerIpc(): void {
   ipcMain.handle('tasks:answer', (_e, code: string, answer: string) =>
     queue.answerQuestion(code, answer)
   )
+  ipcMain.handle('procedures:list', () => db.listProcedures())
+  ipcMain.handle('procedures:create', (_e, input: ProcedureInput) => db.createProcedure(input))
+  ipcMain.handle('procedures:update', (_e, code: string, input: ProcedureInput) =>
+    db.updateProcedure(code, input)
+  )
+  ipcMain.handle('procedures:delete', (_e, code: string) => db.deleteProcedure(code))
+
   ipcMain.handle('tasks:events', (_e, code: string) => db.listEvents(code))
   ipcMain.handle('tasks:commit', (_e, code: string) => queue.getCommit(code))
 

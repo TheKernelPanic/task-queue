@@ -37,7 +37,7 @@ function buildServer(): McpServer {
     {
       title: 'Get task',
       description:
-        'Returns the instructions of a TaskQueue task (title, prompt, project path) and, if the task was resumed after a question, the answer from the user.',
+        'Returns the instructions of a TaskQueue task (title, prompt, project path, required procedures) and, if the task was resumed after a question, the answer from the user. Read every listed procedure with get_procedure and follow it.',
       inputSchema: { code: z.string().describe('Task code, e.g. DK-0001') }
     },
     async ({ code }) => {
@@ -52,12 +52,30 @@ function buildServer(): McpServer {
             status: task.status,
             projectPath: project?.path,
             prompt: task.prompt,
+            procedures: task.procedures.map((p) => ({ code: p, title: db.getProcedure(p)?.title })),
             previousQuestion: task.question,
             answer: task.answer
           },
           null,
           2
         )
+      )
+    }
+  )
+
+  server.registerTool(
+    'get_procedure',
+    {
+      title: 'Get procedure',
+      description:
+        'Returns a reusable TaskQueue procedure (title and Markdown instructions) by its code, e.g. PR-0001. Tasks reference the procedures the agent must follow.',
+      inputSchema: { code: z.string().describe('Procedure code, e.g. PR-0001') }
+    },
+    async ({ code }) => {
+      const procedure = db.getProcedure(code)
+      if (!procedure) return fail(`Procedure ${code} not found`)
+      return text(
+        JSON.stringify({ code: procedure.code, title: procedure.title, prompt: procedure.prompt }, null, 2)
       )
     }
   )

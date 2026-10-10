@@ -1,38 +1,31 @@
-import { useRef, useState } from 'react'
-import type { AgentId, AgentInfo, Task } from '@shared/types'
-import Markdown from './Markdown'
+import { useState } from 'react'
+import type { AgentId, AgentInfo, Procedure, Task } from '@shared/types'
+import MarkdownEditor from './MarkdownEditor'
+import ProcedurePicker from './ProcedurePicker'
+
+interface TaskValues {
+  title: string
+  prompt: string
+  agent: AgentId
+  procedures: string[]
+}
 
 interface Props {
   agents: AgentInfo[]
-  initial?: Pick<Task, 'title' | 'prompt' | 'agent'>
+  procedures: Procedure[]
+  initial?: Pick<Task, 'title' | 'prompt' | 'agent' | 'procedures'>
   submitLabel: string
-  onSubmit: (values: { title: string; prompt: string; agent: AgentId }) => Promise<void>
+  onSubmit: (values: TaskValues) => Promise<void>
   onCancel: () => void
 }
 
-export default function TaskForm({ agents, initial, submitLabel, onSubmit, onCancel }: Props) {
+export default function TaskForm({ agents, procedures, initial, submitLabel, onSubmit, onCancel }: Props) {
   const defaultAgent = agents.find((a) => a.installed)?.id ?? 'claude'
   const [title, setTitle] = useState(initial?.title ?? '')
   const [prompt, setPrompt] = useState(initial?.prompt ?? '')
   const [agent, setAgent] = useState<AgentId>(initial?.agent ?? defaultAgent)
-  const [preview, setPreview] = useState(false)
+  const [attached, setAttached] = useState<string[]>(initial?.procedures ?? [])
   const [error, setError] = useState<string | null>(null)
-  const textarea = useRef<HTMLTextAreaElement>(null)
-
-  async function insertPath(kind: 'file' | 'directory') {
-    const path = await window.api.pickPath(kind)
-    if (!path) return
-    const el = textarea.current
-    const start = el?.selectionStart ?? prompt.length
-    const end = el?.selectionEnd ?? prompt.length
-    const snippet = `\`${path}\``
-    setPrompt(prompt.slice(0, start) + snippet + prompt.slice(end))
-    setPreview(false)
-    requestAnimationFrame(() => {
-      el?.focus()
-      el?.setSelectionRange(start + snippet.length, start + snippet.length)
-    })
-  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -41,7 +34,7 @@ export default function TaskForm({ agents, initial, submitLabel, onSubmit, onCan
       return
     }
     try {
-      await onSubmit({ title: title.trim(), prompt, agent })
+      await onSubmit({ title: title.trim(), prompt, agent, procedures: attached })
     } catch (err) {
       setError((err as Error).message)
     }
@@ -66,34 +59,11 @@ export default function TaskForm({ agents, initial, submitLabel, onSubmit, onCan
         </select>
       </label>
 
-      <div className="prompt-editor">
-        <div className="toolbar">
-          <button type="button" className={!preview ? 'active' : ''} onClick={() => setPreview(false)}>
-            Escribir
-          </button>
-          <button type="button" className={preview ? 'active' : ''} onClick={() => setPreview(true)}>
-            Vista previa
-          </button>
-          <span className="spacer" />
-          <button type="button" onClick={() => insertPath('file')}>
-            + Fichero
-          </button>
-          <button type="button" onClick={() => insertPath('directory')}>
-            + Carpeta
-          </button>
-        </div>
-        {preview ? (
-          <div className="preview">
-            <Markdown>{prompt || '_Sin contenido_'}</Markdown>
-          </div>
-        ) : (
-          <textarea
-            ref={textarea}
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Describe la tarea en Markdown…"
-          />
-        )}
+      <MarkdownEditor value={prompt} onChange={setPrompt} placeholder="Describe la tarea en Markdown…" />
+
+      <div className="field">
+        <span className="field-label">Procedimientos</span>
+        <ProcedurePicker procedures={procedures} value={attached} onChange={setAttached} />
       </div>
 
       {error && <div className="error">{error}</div>}

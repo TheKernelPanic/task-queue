@@ -1,5 +1,11 @@
 import { useState } from 'react'
-import { MANUAL_TRANSITIONS, type AgentInfo, type Task, type TaskStatus } from '@shared/types'
+import {
+  MANUAL_TRANSITIONS,
+  type AgentInfo,
+  type Procedure,
+  type Task,
+  type TaskStatus
+} from '@shared/types'
 import CommitView from './CommitView'
 import HistoryView from './HistoryView'
 import Markdown from './Markdown'
@@ -21,9 +27,11 @@ const ACTION_LABELS: Record<TaskStatus, string> = {
 interface Props {
   task: Task
   agents: AgentInfo[]
+  procedures: Procedure[]
+  onOpenProcedure: (code: string) => void
 }
 
-export default function TaskDetail({ task, agents }: Props) {
+export default function TaskDetail({ task, agents, procedures, onOpenProcedure }: Props) {
   const [tab, setTab] = useState<Tab>('prompt')
   const [editing, setEditing] = useState(false)
   const [answer, setAnswer] = useState('')
@@ -31,6 +39,7 @@ export default function TaskDetail({ task, agents }: Props) {
 
   const editable = task.status === 'Created' || task.status === 'Stopped'
   const agentName = agents.find((a) => a.id === task.agent)?.name ?? task.agent
+  const procedureTitles = new Map(procedures.map((p) => [p.code, p.title]))
 
   async function run(action: () => Promise<unknown>) {
     setError(null)
@@ -92,6 +101,7 @@ export default function TaskDetail({ task, agents }: Props) {
       {editing ? (
         <TaskForm
           agents={agents}
+          procedures={procedures}
           initial={task}
           submitLabel="Guardar"
           onCancel={() => setEditing(false)}
@@ -117,7 +127,31 @@ export default function TaskDetail({ task, agents }: Props) {
             ))}
           </nav>
           <div className="tab-content">
-            {tab === 'prompt' && <Markdown>{task.prompt}</Markdown>}
+            {tab === 'prompt' && (
+              <>
+                <Markdown>{task.prompt}</Markdown>
+                {task.procedures.length > 0 && (
+                  <div className="linked-procedures">
+                    <div className="field-label">Procedimientos</div>
+                    <ol>
+                      {task.procedures.map((code) => (
+                        <li key={code}>
+                          <a
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              onOpenProcedure(code)
+                            }}
+                          >
+                            <code>{code}</code> {procedureTitles.get(code)}
+                          </a>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+              </>
+            )}
             {tab === 'summary' &&
               (task.summary ? <Markdown>{task.summary}</Markdown> : <p className="muted">Sin resumen todavía.</p>)}
             {tab === 'history' && <HistoryView code={task.code} />}

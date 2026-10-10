@@ -20,8 +20,14 @@ Se guarda en `%APPDATA%/task-queue/taskqueue.db`.
 2. Se crea una **tarea** (`DK-0001`, …) en estado `Created`.
 3. Al pasarla a `Pending` entra en la cola. Se ejecuta como mucho una tarea por proyecto a la vez.
 4. La app lanza el agente en la carpeta del proyecto con el código de la tarea como prompt, el MCP ya configurado y unas instrucciones de sistema.
-5. El agente llama a `get_task`, después a `start_task` (`InProgress`), trabaja y termina con `complete_task` y un resumen en Markdown (`Done`).
+5. El agente llama a `get_task` (y a `get_procedure` por cada procedimiento vinculado), después a `start_task` (`InProgress`), trabaja y termina con `complete_task` y un resumen en Markdown (`Done`).
 6. La app hace commit de los cambios con el mensaje `DK-0001: <título>` y el resumen.
+
+### Procedimientos
+
+Un **procedimiento** (`PR-0001`, …) es un bloque reutilizable de instrucciones: título corto y prompt en Markdown, donde también se pueden insertar rutas. Se gestionan desde *Biblioteca → Procedimientos* y pueden editarse en cualquier momento.
+
+Al crear o editar una tarea se le pueden vincular procedimientos, en orden. `get_task` devuelve la lista (código y título) y el agente lee cada uno con la tool MCP `get_procedure`. El agente siempre lee la versión actual del procedimiento. Un procedimiento vinculado a alguna tarea no se puede eliminar.
 
 El stream JSON del agente se guarda en `task_events`, clasificado como `text`, `thinking`, `command`, `output`, `system` o `error`. Se muestra en la pestaña **History** de la tarea.
 
@@ -42,7 +48,7 @@ src/
   shared/types.ts      modelo de dominio y contrato IPC
   main/
     index.ts           ventana, IPC
-    db.ts              SQLite (proyectos, tareas, eventos)
+    db.ts              SQLite (proyectos, tareas, procedimientos, eventos)
     mcp.ts             servidor MCP (Streamable HTTP en 127.0.0.1:47821, con token)
     queue.ts           cola, ejecución de agentes, commit
     git.ts             commit y lectura de diffs

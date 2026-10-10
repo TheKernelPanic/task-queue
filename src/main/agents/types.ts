@@ -41,10 +41,11 @@ export function systemInstructions(code: string): string {
   return [
     `You are executing task ${code} from TaskQueue.`,
     `1. Call the TaskQueue MCP tool get_task with code "${code}" to read the instructions.`,
-    `2. Call start_task with code "${code}" before doing any work.`,
-    '3. Do the work in the current working directory.',
-    '4. If you need a decision from the user to continue, call ask_user and then stop immediately.',
-    `5. When finished, call complete_task with code "${code}" and a Markdown summary of the work.`,
+    '2. If the task lists procedures, read each one with get_procedure and follow them as part of the work.',
+    `3. Call start_task with code "${code}" before doing any work.`,
+    '4. Do the work in the current working directory.',
+    '5. If you need a decision from the user to continue, call ask_user and then stop immediately.',
+    `6. When finished, call complete_task with code "${code}" and a Markdown summary of the work.`,
     'Do not run git commit yourself; TaskQueue commits the changes.'
   ].join('\n')
 }
