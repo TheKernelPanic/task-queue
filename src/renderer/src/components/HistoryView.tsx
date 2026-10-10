@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { TaskEvent, TaskEventKind } from '@shared/types'
 import Markdown from './Markdown'
 
@@ -11,14 +11,17 @@ const KIND_LABELS: Record<TaskEventKind, string> = {
   error: 'Error'
 }
 
+/** Only agent text is shown by default; the other kinds are opt-in for the current view. */
+const DEFAULT_SHOWN: TaskEventKind[] = ['text']
+
 export default function HistoryView({ code }: { code: string }) {
   const [events, setEvents] = useState<TaskEvent[]>([])
-  const [hidden, setHidden] = useState<Set<TaskEventKind>>(new Set())
-  const bottom = useRef<HTMLDivElement>(null)
+  const [shown, setShown] = useState<Set<TaskEventKind>>(() => new Set(DEFAULT_SHOWN))
 
   useEffect(() => {
     let active = true
     setEvents([])
+    setShown(new Set(DEFAULT_SHOWN))
     void window.api.listEvents(code).then((list) => {
       if (!active) return
       // Keep live events that arrived while the initial list was loading.
@@ -34,12 +37,8 @@ export default function HistoryView({ code }: { code: string }) {
     }
   }, [code])
 
-  useEffect(() => {
-    bottom.current?.scrollIntoView({ block: 'end' })
-  }, [events.length])
-
   function toggle(kind: TaskEventKind) {
-    setHidden((prev) => {
+    setShown((prev) => {
       const next = new Set(prev)
       if (next.has(kind)) next.delete(kind)
       else next.add(kind)
@@ -47,14 +46,15 @@ export default function HistoryView({ code }: { code: string }) {
     })
   }
 
-  const visible = events.filter((e) => !hidden.has(e.kind))
+  // Newest first.
+  const visible = events.filter((e) => shown.has(e.kind)).reverse()
 
   return (
     <div className="history">
       <div className="history-filters">
         {(Object.keys(KIND_LABELS) as TaskEventKind[]).map((kind) => (
           <label key={kind} className={`chip chip-${kind}`}>
-            <input type="checkbox" checked={!hidden.has(kind)} onChange={() => toggle(kind)} />
+            <input type="checkbox" checked={shown.has(kind)} onChange={() => toggle(kind)} />
             {KIND_LABELS[kind]}
           </label>
         ))}
@@ -69,7 +69,6 @@ export default function HistoryView({ code }: { code: string }) {
           {e.kind === 'text' ? <Markdown>{e.content}</Markdown> : <pre>{e.content}</pre>}
         </div>
       ))}
-      <div ref={bottom} />
     </div>
   )
 }
