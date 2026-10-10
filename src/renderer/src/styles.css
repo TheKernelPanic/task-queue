@@ -1034,3 +1034,137 @@ label.switch {
   color: #ddd;
   font-size: 12px;
 }
+
+/* Commit review */
+.commit { container-type: inline-size; min-width: 0; }
+.commit-header { border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; background: linear-gradient(120deg, #fafafa, #fff); }
+.commit-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.commit-summary .eyebrow { margin: 0; }
+.commit-summary > code { padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--muted); }
+.commit-message { font-size: 15px; font-weight: 550; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; margin: 12px 0 8px; }
+.commit-meta { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--muted); font-size: 12px; }
+.commit-totals { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 12px; font-size: 12px; }
+.diff-stats { display: inline-flex; gap: 8px; font: 600 11px 'Cascadia Code', Consolas, monospace; white-space: nowrap; }
+.diff-stat-add { color: #176b3a; }
+.diff-stat-del { color: #ae3041; }
+.commit-body { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 12px; align-items: start; }
+.commit-file-panel, .diff-panel { border: 1px solid var(--border); border-radius: 11px; overflow: hidden; min-width: 0; background: #fff; }
+.commit-file-search { padding: 12px; border-bottom: 1px solid var(--border); }
+.commit-file-search label { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 12px; font-weight: 600; }
+.commit-file-search label span { color: var(--muted); }
+.commit-file-search input { padding: 8px 10px; font-size: 12px; }
+.commit-files { margin: 0; padding: 6px; max-height: 480px; overflow: auto; list-style: none; }
+.commit-files li { padding: 0; }
+.commit-files button { display: flex; flex-direction: column; gap: 5px; width: 100%; text-align: left; padding: 10px; background: transparent; border: 1px solid transparent; border-radius: 7px; }
+.commit-files button.selected { background: #f0f2f5; border-color: #d6dbe2; box-shadow: inset 3px 0 #505b6c; }
+.commit-file-name { font-weight: 600; font-size: 12px; overflow-wrap: anywhere; }
+.commit-file-path { color: var(--muted); font-size: 10px; overflow-wrap: anywhere; }
+.commit-file-info { display: flex; justify-content: space-between; gap: 10px; width: 100%; margin-top: 3px; font-size: 10px; color: var(--muted); }
+.diff-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 12px 14px; background: #fafafa; border-bottom: 1px solid var(--border); }
+.diff-file-heading { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+.diff-file-heading strong { font: 600 12px 'Cascadia Code', Consolas, monospace; overflow-wrap: anywhere; }
+.diff-file-heading > span { color: var(--muted); font-size: 11px; display: flex; gap: 12px; }
+.diff-toolbar button { font-size: 11px; padding: 6px 8px; }
+.diff-toolbar button[aria-pressed='true'] { background: #e6ebf1; border-color: #adb8c7; }
+.diff { margin: 0; border: 0; border-radius: 0; max-height: 65vh; overflow: auto; background: #fff; line-height: 1.8; }
+.diff div { padding: 0; white-space: normal; }
+.diff .diff-lines { width: max-content; min-width: 100%; padding: 6px 0; }
+.diff .diff-row { display: grid; grid-template-columns: 4.5ch 4.5ch 3ch minmax(0, 1fr); font: 12px/1.9 'Cascadia Code', Consolas, monospace; }
+.diff-line-number { text-align: right; padding: 0 6px; color: #7b8490; border-right: 1px solid #172b4d0a; user-select: none; }
+.diff-marker { text-align: center; user-select: none; }
+.diff-row code { white-space: pre; padding-right: 16px; font: inherit; tab-size: 4; }
+.diff-add { background: #eaf7ef; color: #195b34; }
+.diff-del { background: #fff0f1; color: #973342; }
+.diff-hunk { background: #edf3fa; color: #4c6685; margin: 8px 0; }
+.diff-hunk code, .diff-note code { grid-column: 4; }
+.diff-note { color: var(--muted); font-style: italic; }
+.diff-wrap .diff-lines { width: 100%; }
+.diff-wrap .diff-row code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.commit-empty { padding: 28px 18px; text-align: center; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.commit-empty.error { color: var(--danger); }
+@container (max-width: 640px) {
+  .commit-body { grid-template-columns: minmax(0, 1fr); }
+  .commit-files { max-height: 180px; }
+  .commit-files button { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 12px; }
+  .commit-file-path { grid-column: 1; }
+  .commit-file-info { grid-column: 2; grid-row: 1 / 3; align-self: center; width: auto; flex-wrap: wrap; }
+}
+
+/* Pastel task cards: keep the status visible on hover and selection. */
+.task-table tr[data-status='Created'] { --task-bg: #f0eefb; --task-color: #6954a0; }
+.task-table tr[data-status='Pending'] { --task-bg: #fff7dc; --task-color: #886313; }
+.task-table tr[data-status='InProgress'] { --task-bg: #eaf3ff; --task-color: #3269a8; }
+.task-table tr[data-status='WaitingForInput'] { --task-bg: #fff0df; --task-color: #a4591d; }
+.task-table tr[data-status='Stopped'] { --task-bg: #fdecef; --task-color: #ab3e56; }
+.task-table tr[data-status='Done'] { --task-bg: #eaf6ee; --task-color: #34734b; }
+.task-table tr[data-status='Cancelled'] { --task-bg: #eeeeef; --task-color: #686874; }
+.task-table tr[data-status] td { background: var(--task-bg); border-color: color-mix(in srgb, var(--task-color) 20%, white); transition: background 120ms, border-color 120ms; }
+.task-table tr[data-status]:hover td { background: color-mix(in srgb, var(--task-bg) 92%, var(--task-color)); }
+.task-table tr[data-status].selected td { background: color-mix(in srgb, var(--task-bg) 88%, var(--task-color)); border-color: var(--task-color); }
+.task-table tr[data-status].selected td:first-child { box-shadow: inset 3px 0 var(--task-color); }
+.task-table tr[data-status] .badge { color: var(--task-color); background: #ffffff80; }
+
+/* Dark detail panel, including forms, previews and commit review. */
+.detail-pane {
+  color-scheme: dark;
+  --bg: #15171b;
+  --panel: #1c1f24;
+  --panel-2: #262a31;
+  --border: #363c46;
+  --text: #eceef2;
+  --muted: #a5adba;
+  --accent: #a9c7ff;
+  --danger: #ff9ba8;
+  --green: #91d9ac;
+  --yellow: #e9c879;
+  --orange: #f1b781;
+  color: var(--text);
+  background: var(--bg);
+  border-color: var(--border);
+  box-shadow: 0 8px 28px #00000020;
+}
+.detail-pane:has(> .detail-empty) { background: radial-gradient(ellipse at 50% 42%, #22262e, var(--bg) 70%); }
+.detail-pane, .detail-pane * { scrollbar-color: #505866 transparent; }
+.detail-pane ::selection { background: #3e5578; color: #fff; }
+.detail-pane :focus-visible { outline-color: #a9c7ff; }
+.detail-pane :is(input, select, textarea) { background: var(--panel); color: var(--text); border-color: var(--border); }
+.detail-pane input::placeholder, .detail-pane textarea::placeholder { color: #919ba9; }
+.detail-pane :is(.task-form label, .field-label) { color: var(--muted); }
+.detail-pane button { background: var(--panel-2); color: var(--text); border-color: var(--border); box-shadow: none; }
+.detail-pane button:hover:not(:disabled) { background: #333b48; border-color: #68758a; }
+.detail-pane button.primary { background: #30476d; border-color: #5779ab; color: #f1f6ff; }
+.detail-pane button.primary:hover:not(:disabled) { background: #3b5985; border-color: #8aa9d8; }
+.detail-pane button.danger { background: #3c252c; border-color: #76404c; color: var(--danger); }
+.detail-pane button.danger:hover:not(:disabled) { background: #54313a; border-color: var(--danger); }
+.detail-pane button.active, .detail-pane .tabs button.active { background: #354154; color: #d9e8ff; box-shadow: none; }
+.detail-pane :is(.tabs, .toolbar, .chip, .event, .dropzone, .stat) { background: var(--panel); border-color: var(--border); }
+.detail-pane .tabs button { background: transparent; color: var(--muted); }
+.detail-pane .chip:has(input:checked), .detail-pane .dropzone.over { background: #2d3c51; border-color: #7193c3; }
+.detail-pane .question { background: #30291f; border-color: #6e5737; }
+.detail-pane .file-list li { border-color: var(--border); }
+.detail-pane .badge { background: var(--panel-2); color: var(--muted); }
+.detail-pane .badge-Pending { background: #39321e; color: var(--yellow); }
+.detail-pane .badge-InProgress { background: #26364d; color: var(--accent); }
+.detail-pane .badge-WaitingForInput { background: #3d2f22; color: var(--orange); }
+.detail-pane .badge-Stopped { background: #3c252c; color: var(--danger); }
+.detail-pane .badge-Done { background: #203b2d; color: var(--green); }
+.detail-pane .empty-illustration { background: var(--panel); border-color: #505866; box-shadow: 9px 9px 0 #292e37; }
+.detail-pane .empty-illustration i { background: #424b59; }
+.detail-pane .empty-illustration i:first-child { background: #a9c7ff; }
+.detail-pane .switch input:checked + .switch-track { background: #47699b; border-color: #7e9fcc; }
+.detail-pane .prompt-editor .preview { background: var(--bg); color: var(--text); }
+.detail-pane .commit-header { background: linear-gradient(120deg, #22262e, var(--panel)); }
+.detail-pane :is(.commit-summary > code, .commit-file-panel, .diff-panel, .diff-toolbar) { background: var(--panel); }
+.detail-pane .commit-files button { background: transparent; border-color: transparent; }
+.detail-pane .commit-files button.selected { background: #2d3a4e; border-color: #526988; box-shadow: inset 3px 0 #a9c7ff; }
+.detail-pane .diff-toolbar button[aria-pressed='true'] { background: #354b6b; border-color: #7e9fcc; }
+.detail-pane .diff { background: #171a1f; }
+.detail-pane .diff-line-number { color: #909dac; border-color: #ffffff0a; }
+.detail-pane .diff-stat-add { color: #91d9ac; }
+.detail-pane .diff-stat-del { color: #ff9ba8; }
+.detail-pane .diff-add { background: #1c3528; color: #b3e8c5; }
+.detail-pane .diff-del { background: #3b242c; color: #ffc0c8; }
+.detail-pane .diff-hunk { background: #222f42; color: #aec8ed; }
+@media (prefers-reduced-motion: reduce) {
+  .task-table tr[data-status] td { transition: none; }
+}

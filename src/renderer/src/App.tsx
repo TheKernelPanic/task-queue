@@ -218,6 +218,7 @@ export default function App() {
                 {projectTasks.map((t) => (
                   <tr
                     key={t.code}
+                    data-status={t.status}
                     className={view.kind === 'task' && view.code === t.code ? 'selected' : ''}
                     onClick={() => setView({ kind: 'task', code: t.code })}
                   >
