@@ -219,7 +219,10 @@ export default function App() {
                       <code>{t.code}</code>
                     </td>
                     <td>{t.title}</td>
-                    <td>{t.agent}</td>
+                    <td>
+                      {t.agent}
+                      {t.model && <span className="muted small"> · {t.model}</span>}
+                    </td>
                     <td>
                       <StatusBadge status={t.status} />
                     </td>

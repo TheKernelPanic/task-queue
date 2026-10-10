@@ -33,7 +33,7 @@ export async function detectAgents(): Promise<AgentInfo[]> {
     Object.values(adapters).map(async (a) => {
       const path = await locate(a.executable)
       resolved.set(a.id, path)
-      return { id: a.id, name: a.name, path, installed: path !== null }
+      return { id: a.id, name: a.name, path, installed: path !== null, models: a.models }
     })
   )
 }

@@ -14,11 +14,19 @@ export type AgentId = 'claude' | 'codex'
 
 export type PermissionMode = 'acceptEdits' | 'bypassPermissions'
 
+export interface ModelOption {
+  /** Value passed to the agent CLI (alias or full model name). */
+  id: string
+  label: string
+}
+
 export interface AgentInfo {
   id: AgentId
   name: string
   path: string | null
   installed: boolean
+  /** Suggested models; any other model name can be typed in. */
+  models: ModelOption[]
 }
 
 export interface Project {
@@ -36,6 +44,8 @@ export interface Task {
   title: string
   prompt: string
   agent: AgentId
+  /** Model for the agent; null uses the agent's default. */
+  model: string | null
   status: TaskStatus
   summary: string | null
   question: string | null
@@ -152,6 +162,7 @@ export interface NewTask {
   title: string
   prompt: string
   agent: AgentId
+  model: string | null
   procedures: string[]
 }
 
@@ -159,6 +170,7 @@ export interface TaskUpdate {
   title?: string
   prompt?: string
   agent?: AgentId
+  model?: string | null
   procedures?: string[]
 }
 

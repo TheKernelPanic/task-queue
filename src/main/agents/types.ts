@@ -1,5 +1,6 @@
 import type {
   AgentId,
+  ModelOption,
   ModelUsage,
   Project,
   RateLimitSnapshot,
@@ -57,6 +58,7 @@ export interface AgentAdapter {
   id: AgentId
   name: string
   executable: string
+  models: ModelOption[]
   buildArgs(ctx: RunContext): string[]
   parseLine(line: string): ParsedLine
 }

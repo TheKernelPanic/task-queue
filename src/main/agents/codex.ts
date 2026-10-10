@@ -9,6 +9,8 @@ export const codexAdapter: AgentAdapter = {
   id: 'codex',
   name: 'Codex',
   executable: 'codex',
+  // No curated list: the model name is typed in the task form.
+  models: [],
 
   buildArgs({
     task,
@@ -26,6 +28,7 @@ export const codexAdapter: AgentAdapter = {
       'exec',
       ...(resumeSessionId ? ['resume', resumeSessionId] : []),
       '--json',
+      ...(task.model ? ['-m', task.model] : []),
       '-c',
       `${server}.url="${mcp.url}"`,
       '-c',

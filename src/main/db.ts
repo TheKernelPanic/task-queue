@@ -121,6 +121,7 @@ export function openDatabase(file: string): void {
   addColumn('task_procedures', 'snapshot_title', 'TEXT')
   addColumn('task_procedures', 'snapshot_prompt', 'TEXT')
   addColumn('task_procedures', 'snapshot_at', 'TEXT')
+  addColumn('tasks', 'model', 'TEXT')
 }
 
 function addColumn(table: string, column: string, definition: string): void {
@@ -150,6 +151,7 @@ function toTask(r: Row): Task {
     title: r.title as string,
     prompt: r.prompt as string,
     agent: r.agent as Task['agent'],
+    model: (r.model as string) ?? null,
     status: r.status as TaskStatus,
     summary: (r.summary as string) ?? null,
     question: (r.question as string) ?? null,
@@ -302,8 +304,8 @@ export function createTask(input: NewTask): Task {
   const task = transaction(() => {
     const code = nextCode('task', TASK_PREFIX)
     db.prepare(
-      'INSERT INTO tasks (code, project_id, title, prompt, agent) VALUES (?, ?, ?, ?, ?)'
-    ).run(code, input.projectId, input.title, input.prompt, input.agent)
+      'INSERT INTO tasks (code, project_id, title, prompt, agent, model) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(code, input.projectId, input.title, input.prompt, input.agent, input.model?.trim() || null)
     setTaskProcedures(code, input.projectId, input.procedures)
     return getTask(code)!
   })
@@ -315,6 +317,7 @@ const COLUMN_MAP: Record<string, string> = {
   title: 'title',
   prompt: 'prompt',
   agent: 'agent',
+  model: 'model',
   status: 'status',
   summary: 'summary',
   question: 'question',

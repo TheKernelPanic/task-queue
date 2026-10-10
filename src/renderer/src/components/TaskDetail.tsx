@@ -67,6 +67,7 @@ export default function TaskDetail({ task, agents, procedures, onOpenProcedure }
         </div>
         <div className="meta">
           Agente: {agentName}
+          {' · '}Modelo: {task.model ? <code>{task.model}</code> : 'por defecto'}
           {task.sessionId && <> · Sesión: <code>{task.sessionId.slice(0, 8)}</code></>}
           {task.commitHash && <> · Commit: <code>{task.commitHash.slice(0, 8)}</code></>}
         </div>

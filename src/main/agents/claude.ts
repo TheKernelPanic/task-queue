@@ -79,6 +79,17 @@ export const claudeAdapter: AgentAdapter = {
   id: 'claude',
   name: 'Claude Code',
   executable: 'claude',
+  // Aliases always point to the latest model of each family.
+  models: [
+    { id: 'fable', label: 'Fable (último)' },
+    { id: 'opus', label: 'Opus (último)' },
+    { id: 'sonnet', label: 'Sonnet (último)' },
+    { id: 'haiku', label: 'Haiku (último)' },
+    { id: 'claude-fable-5-1', label: 'claude-fable-5-1' },
+    { id: 'claude-opus-5-5', label: 'claude-opus-5-5' },
+    { id: 'claude-sonnet-5-5', label: 'claude-sonnet-5-5' },
+    { id: 'claude-haiku-5-5', label: 'claude-haiku-5-5' }
+  ],
 
   buildArgs({
     task,
@@ -120,6 +131,7 @@ export const claudeAdapter: AgentAdapter = {
       answersDir,
       workspaceDir
     ]
+    if (task.model) args.push('--model', task.model)
     if (resumeSessionId) args.push('--resume', resumeSessionId)
     return args
   },

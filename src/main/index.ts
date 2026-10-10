@@ -75,6 +75,7 @@ function registerIpc(): void {
       title: patch.title,
       prompt: patch.prompt,
       agent: patch.agent,
+      model: patch.model === undefined ? undefined : patch.model?.trim() || null,
       procedures: patch.procedures
     })
   })

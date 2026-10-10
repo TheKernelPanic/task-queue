@@ -17,7 +17,7 @@ Se guarda en `%APPDATA%/task-queue/taskqueue.db`.
 ## Flujo
 
 1. Se da de alta un **proyecto** (carpeta, idealmente un repositorio git) y su modo de permisos para el agente.
-2. Se crea una **tarea** (`DK-0001`, …) en estado `Created`.
+2. Se crea una **tarea** (`DK-0001`, …) en estado `Created`, con su agente y, opcionalmente, su modelo. En Claude se puede elegir un alias (`fable`, `opus`, `sonnet`, `haiku`) o un identificador completo; en Codex se escribe el nombre. Sin modelo se usa el predeterminado del agente.
 3. Al pasarla a `Pending` entra en la cola. Se ejecuta como mucho una tarea por proyecto a la vez.
 4. La app lanza el agente en la carpeta del proyecto con el código de la tarea como prompt, el MCP ya configurado y unas instrucciones de sistema.
 5. El agente llama a `get_task` (y a `get_procedure` por cada procedimiento vinculado), después a `start_task` (`InProgress`), trabaja y termina con `complete_task` y un resumen en Markdown (`Done`).
