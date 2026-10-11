@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Task, TaskFile } from '@shared/types'
-import FileList, { formatSize, useRefreshOnActivity } from './FileList'
+import FileCards from './FileCards'
+import { formatSize, useRefreshOnActivity } from './FileList'
 
 export default function WorkspaceView({ task }: { task: Task }) {
   const [files, setFiles] = useState<TaskFile[]>([])
@@ -43,7 +44,7 @@ export default function WorkspaceView({ task }: { task: Task }) {
             {truncated && ' · lista recortada; abre la carpeta para ver todo'}
           </p>
         )}
-        <FileList files={files} empty="El agente no ha creado nada en su directorio de trabajo." showModified />
+        <FileCards files={files} empty="El agente no ha creado nada en su directorio de trabajo." showModified />
       </section>
     </div>
   )

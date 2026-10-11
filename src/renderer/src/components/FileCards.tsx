@@ -4,16 +4,18 @@ import { formatSize } from './FileList'
 
 const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'avif', 'ico']
 const AUDIO_EXT = ['mp3', 'wav', 'ogg', 'oga', 'm4a', 'aac', 'flac', 'opus']
+const VIDEO_EXT = ['mp4', 'webm', 'mov', 'm4v', 'ogv', 'mkv']
 
 function extension(name: string): string {
   const i = name.lastIndexOf('.')
   return i === -1 ? '' : name.slice(i + 1).toLowerCase()
 }
 
-function kindOf(file: TaskFile): 'image' | 'audio' | 'other' {
+function kindOf(file: TaskFile): 'image' | 'audio' | 'video' | 'other' {
   const ext = extension(file.name)
   if (IMAGE_EXT.includes(ext)) return 'image'
   if (AUDIO_EXT.includes(ext)) return 'audio'
+  if (VIDEO_EXT.includes(ext)) return 'video'
   return 'other'
 }
 
@@ -26,14 +28,33 @@ function baseName(name: string): string {
   return name.split('/').pop() ?? name
 }
 
+/** First frame of a video, loaded only once the card scrolls into view (lists can be long). */
+function VideoThumb({ file }: { file: TaskFile }) {
+  const ref = useRef<HTMLVideoElement | null>(null)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el || visible) return
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) setVisible(true)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [visible])
+
+  return <video ref={ref} src={visible ? `${fileUrl(file)}#t=0.1` : undefined} preload="metadata" muted />
+}
+
 interface Props {
   files: TaskFile[]
   empty: string
+  showModified?: boolean
   onRemove?: (file: TaskFile) => void
 }
 
-/** Files as small cards: image thumbnails (click to enlarge) and play/stop for audio. */
-export default function FileCards({ files, empty, onRemove }: Props) {
+/** Files as small cards: image and video thumbnails (click to enlarge/play) and play/stop for audio. */
+export default function FileCards({ files, empty, showModified, onRemove }: Props) {
   const [playing, setPlaying] = useState<string | null>(null)
   const [viewing, setViewing] = useState<TaskFile | null>(null)
   const audio = useRef<HTMLAudioElement | null>(null)
@@ -86,6 +107,12 @@ export default function FileCards({ files, empty, onRemove }: Props) {
                     <img src={fileUrl(f)} alt={f.name} loading="lazy" />
                   </button>
                 )}
+                {kind === 'video' && (
+                  <button className="thumb video" title="Ver vídeo" onClick={() => setViewing(f)}>
+                    <VideoThumb file={f} />
+                    <span className="thumb-play">▶</span>
+                  </button>
+                )}
                 {kind === 'audio' && (
                   <button
                     className="play"
@@ -98,6 +125,11 @@ export default function FileCards({ files, empty, onRemove }: Props) {
                 {kind === 'other' && <span className="ext">{extension(f.name) || 'file'}</span>}
               </div>
               <div className="file-card-name">{baseName(f.name)}</div>
+              {showModified && (
+                <div className="file-card-date muted small">
+                  {new Date(f.modifiedAt).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}
+                </div>
+              )}
               <div className="file-card-meta">
                 <span className="muted small">{formatSize(f.size)}</span>
                 <span className="file-card-actions">
@@ -121,7 +153,11 @@ export default function FileCards({ files, empty, onRemove }: Props) {
 
       {viewing && (
         <div className="lightbox" onClick={() => setViewing(null)}>
-          <img src={fileUrl(viewing)} alt={viewing.name} onClick={(e) => e.stopPropagation()} />
+          {kindOf(viewing) === 'video' ? (
+            <video src={fileUrl(viewing)} controls autoPlay onClick={(e) => e.stopPropagation()} />
+          ) : (
+            <img src={fileUrl(viewing)} alt={viewing.name} onClick={(e) => e.stopPropagation()} />
+          )}
           <div className="lightbox-caption">
             {viewing.name} · {formatSize(viewing.size)} · Esc para cerrar
           </div>
