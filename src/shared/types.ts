@@ -1,6 +1,7 @@
 export const TASK_STATUSES = [
   'Created',
   'Pending',
+  'Blocked',
   'InProgress',
   'WaitingForInput',
   'Stopped',
@@ -66,6 +67,8 @@ export interface Task {
   procedureSnapshots: ProcedureSnapshot[]
   /** Codes of previously completed (Done) tasks of the same project this task builds on. */
   dependencies: string[]
+  /** Codes of tasks of the same project that must be Done before this one runs. */
+  blockedBy: string[]
   createdAt: string
   updatedAt: string
 }
@@ -176,6 +179,7 @@ export interface NewTask {
   commit: boolean
   procedures: string[]
   dependencies: string[]
+  blockedBy: string[]
 }
 
 export interface TaskUpdate {
@@ -186,6 +190,7 @@ export interface TaskUpdate {
   commit?: boolean
   procedures?: string[]
   dependencies?: string[]
+  blockedBy?: string[]
 }
 
 export interface CommitInfo {
@@ -203,6 +208,8 @@ export interface CommitInfo {
 export const MANUAL_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   Created: ['Pending', 'Cancelled'],
   Pending: ['Cancelled'],
+  /** Moves to Pending by itself once every blocking task is Done. */
+  Blocked: ['Cancelled'],
   InProgress: ['Stopped', 'Cancelled'],
   WaitingForInput: ['Stopped', 'Cancelled'],
   Stopped: ['Pending', 'Cancelled'],

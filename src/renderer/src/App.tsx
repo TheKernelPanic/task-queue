@@ -62,7 +62,6 @@ export default function App() {
 
   const project = projects.find((p) => p.id === projectId) ?? null
   const projectTasks = useMemo(() => tasks.filter((t) => t.projectId === projectId), [tasks, projectId])
-  const doneTasks = useMemo(() => projectTasks.filter((t) => t.status === 'Done'), [projectTasks])
   const selected = view.kind === 'task' ? tasks.find((t) => t.code === view.code) : undefined
   const projectNames = new Map(projects.map((p) => [p.id, p.name]))
   const visibleProcedures =
@@ -239,7 +238,7 @@ export default function App() {
             <TaskForm
               agents={agents}
               procedures={procedures.filter((p) => p.projectIds.includes(project.id))}
-              doneTasks={doneTasks}
+              projectTasks={projectTasks}
               submitLabel="Crear"
               withResources
               gitRepo={project.isGitRepo}

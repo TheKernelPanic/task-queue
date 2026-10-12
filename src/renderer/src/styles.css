@@ -192,6 +192,9 @@ textarea {
 .badge-Pending {
   color: var(--yellow);
 }
+.badge-Blocked {
+  color: var(--orange);
+}
 .badge-InProgress {
   color: var(--accent);
 }
@@ -733,6 +736,7 @@ input[type='checkbox'] { accent-color: var(--accent); }
 .badge::before { content: ''; width: 5px; height: 5px; display: inline-block; border-radius: 50%; background: currentColor; margin-right: 5px; vertical-align: 1px; }
 .badge-Created { color: #6b6b6b; }
 .badge-Pending { background: #f8efd5; }
+.badge-Blocked { background: #fbeee4; }
 .badge-InProgress { background: #ebebeb; }
 .badge-WaitingForInput { background: #fff0df; }
 .badge-Stopped { background: #fbe8eb; }
@@ -1118,6 +1122,7 @@ label.switch {
 /* Pastel task cards: keep the status visible on hover and selection. */
 .task-table tr[data-status='Created'] { --task-bg: #f0eefb; --task-color: #6954a0; }
 .task-table tr[data-status='Pending'] { --task-bg: #fff7dc; --task-color: #886313; }
+.task-table tr[data-status='Blocked'] { --task-bg: #fbeee4; --task-color: #9a5a2c; }
 .task-table tr[data-status='InProgress'] { --task-bg: #eaf3ff; --task-color: #3269a8; }
 .task-table tr[data-status='WaitingForInput'] { --task-bg: #fff0df; --task-color: #a4591d; }
 .task-table tr[data-status='Stopped'] { --task-bg: #fdecef; --task-color: #ab3e56; }
@@ -1169,6 +1174,7 @@ label.switch {
 .detail-pane .file-list li { border-color: var(--border); }
 .detail-pane .badge { background: var(--panel-2); color: var(--muted); }
 .detail-pane .badge-Pending { background: #39321e; color: var(--yellow); }
+.detail-pane .badge-Blocked { background: #3b2c22; color: var(--orange); }
 .detail-pane .badge-InProgress { background: #26364d; color: var(--accent); }
 .detail-pane .badge-WaitingForInput { background: #3d2f22; color: var(--orange); }
 .detail-pane .badge-Stopped { background: #3c252c; color: var(--danger); }

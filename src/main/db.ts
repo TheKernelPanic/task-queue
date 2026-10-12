@@ -93,6 +93,13 @@ export function openDatabase(file: string): void {
       PRIMARY KEY (task_code, depends_on)
     );
 
+    CREATE TABLE IF NOT EXISTS task_blockers (
+      task_code TEXT NOT NULL REFERENCES tasks(code) ON DELETE CASCADE,
+      blocker_code TEXT NOT NULL REFERENCES tasks(code) ON DELETE CASCADE,
+      position INTEGER NOT NULL,
+      PRIMARY KEY (task_code, blocker_code)
+    );
+
     CREATE TABLE IF NOT EXISTS procedure_projects (
       procedure_code TEXT NOT NULL REFERENCES procedures(code) ON DELETE CASCADE,
       project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -170,6 +177,7 @@ function toTask(r: Row): Task {
     procedures: taskProcedureCodes(r.code as string),
     procedureSnapshots: taskProcedureSnapshots(r.code as string),
     dependencies: taskDependencyCodes(r.code as string),
+    blockedBy: taskBlockerCodes(r.code as string),
     createdAt: r.created_at as string,
     updatedAt: r.updated_at as string
   }
@@ -324,6 +332,58 @@ function setTaskDependencies(taskCode: string, projectId: number, codes: string[
   unique.forEach((code, i) => insert.run(taskCode, code, i))
 }
 
+function taskBlockerCodes(taskCode: string): string[] {
+  return (
+    db
+      .prepare('SELECT blocker_code FROM task_blockers WHERE task_code = ? ORDER BY position')
+      .all(taskCode) as Row[]
+  ).map((r) => r.blocker_code as string)
+}
+
+/** Whether taskCode is reachable from start following blocked-by links (would close a cycle). */
+function blocksTransitively(start: string, taskCode: string): boolean {
+  const seen = new Set<string>()
+  const stack = [start]
+  while (stack.length > 0) {
+    const code = stack.pop()!
+    if (code === taskCode) return true
+    if (seen.has(code)) continue
+    seen.add(code)
+    stack.push(...taskBlockerCodes(code))
+  }
+  return false
+}
+
+/** Blocking tasks must belong to the same project, not be cancelled and not form a cycle. */
+function setTaskBlockers(taskCode: string, projectId: number, codes: string[]): void {
+  const unique = [...new Set(codes)].filter((c) => c !== taskCode)
+  const tasks = unique.map((c) => [c, getTask(c)] as const)
+  const missing = tasks.filter(([, t]) => !t).map(([c]) => c)
+  if (missing.length > 0) throw new Error(`Unknown tasks: ${missing.join(', ')}`)
+  const foreign = tasks.filter(([, t]) => t!.projectId !== projectId).map(([c]) => c)
+  if (foreign.length > 0) {
+    throw new Error(`Tareas que no pertenecen al proyecto de la tarea: ${foreign.join(', ')}`)
+  }
+  const cancelled = tasks.filter(([, t]) => t!.status === 'Cancelled').map(([c]) => c)
+  if (cancelled.length > 0) {
+    throw new Error(`Una tarea cancelada no puede bloquear a otra: ${cancelled.join(', ')}`)
+  }
+  const cycle = unique.filter((c) => blocksTransitively(c, taskCode))
+  if (cycle.length > 0) {
+    throw new Error(`Bloqueo circular: ${cycle.join(', ')} ya depende de ${taskCode}`)
+  }
+  db.prepare('DELETE FROM task_blockers WHERE task_code = ?').run(taskCode)
+  const insert = db.prepare(
+    'INSERT INTO task_blockers (task_code, blocker_code, position) VALUES (?, ?, ?)'
+  )
+  unique.forEach((code, i) => insert.run(taskCode, code, i))
+}
+
+/** Blocking tasks of a task that are not Done yet. */
+export function pendingBlockers(task: Task): string[] {
+  return task.blockedBy.filter((code) => getTask(code)?.status !== 'Done')
+}
+
 export function listTasks(projectId?: number): Task[] {
   const rows =
     projectId === undefined
@@ -356,6 +416,7 @@ export function createTask(input: NewTask): Task {
     )
     setTaskProcedures(code, input.projectId, input.procedures)
     setTaskDependencies(code, input.projectId, input.dependencies ?? [])
+    setTaskBlockers(code, input.projectId, input.blockedBy ?? [])
     return getTask(code)!
   })
   bus.emit('task', task)
@@ -391,9 +452,10 @@ export function patchTask(code: string, patch: TaskPatch): Task {
       )
     }
     const current = getTask(code)
-    if (!current || (!patch.procedures && !patch.dependencies)) return current
+    if (!current || (!patch.procedures && !patch.dependencies && !patch.blockedBy)) return current
     if (patch.procedures) setTaskProcedures(code, current.projectId, patch.procedures)
     if (patch.dependencies) setTaskDependencies(code, current.projectId, patch.dependencies)
+    if (patch.blockedBy) setTaskBlockers(code, current.projectId, patch.blockedBy)
     return getTask(code)
   })
   if (!task) throw new Error(`Task ${code} not found`)
@@ -404,10 +466,14 @@ export function patchTask(code: string, patch: TaskPatch): Task {
   return task
 }
 
-/** Removes a task; events, runs, procedure and dependency links go with it (ON DELETE CASCADE). */
+/** Removes a task; events, runs, procedure, dependency and blocker links go with it (ON DELETE CASCADE). */
 export function deleteTask(code: string): void {
   db.prepare('DELETE FROM tasks WHERE code = ?').run(code)
   bus.emit('deleted', code)
+}
+
+export function listBlockedTasks(): Task[] {
+  return (db.prepare("SELECT * FROM tasks WHERE status = 'Blocked' ORDER BY code").all() as Row[]).map(toTask)
 }
 
 /** Oldest Pending tasks first; the queue picks from here. */

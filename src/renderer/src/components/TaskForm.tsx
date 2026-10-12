@@ -15,6 +15,7 @@ interface TaskValues {
   commit: boolean
   procedures: string[]
   dependencies: string[]
+  blockedBy: string[]
   /** Files to copy into the task resources once created (only when withResources). */
   resourcePaths: string[]
 }
@@ -22,9 +23,12 @@ interface TaskValues {
 interface Props {
   agents: AgentInfo[]
   procedures: Procedure[]
-  /** Done tasks of the project that can be linked as dependencies. */
-  doneTasks: Task[]
-  initial?: Pick<Task, 'title' | 'prompt' | 'agent' | 'model' | 'commit' | 'procedures' | 'dependencies'>
+  /** Tasks of the project: Done ones can be linked as dependencies, any non-cancelled one as blocker. */
+  projectTasks: Task[]
+  initial?: Pick<
+    Task,
+    'title' | 'prompt' | 'agent' | 'model' | 'commit' | 'procedures' | 'dependencies' | 'blockedBy'
+  >
   /** Code of the task being edited, to preview the commit message (new tasks have none yet). */
   code?: string
   /** Commits are only possible in git projects. */
@@ -39,7 +43,7 @@ interface Props {
 export default function TaskForm({
   agents,
   procedures,
-  doneTasks,
+  projectTasks,
   initial,
   submitLabel,
   withResources,
@@ -56,6 +60,7 @@ export default function TaskForm({
   const [commit, setCommit] = useState(initial?.commit ?? true)
   const [attached, setAttached] = useState<string[]>(initial?.procedures ?? [])
   const [dependencies, setDependencies] = useState<string[]>(initial?.dependencies ?? [])
+  const [blockedBy, setBlockedBy] = useState<string[]>(initial?.blockedBy ?? [])
   const [resourcePaths, setResourcePaths] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
 
@@ -74,6 +79,7 @@ export default function TaskForm({
         commit: gitRepo && commit,
         procedures: attached,
         dependencies,
+        blockedBy,
         resourcePaths
       })
     } catch (err) {
@@ -147,12 +153,30 @@ export default function TaskForm({
       <div className="field">
         <span className="field-label">Tareas previas</span>
         <DependencyPicker
-          tasks={doneTasks.filter((t) => t.code !== code)}
+          tasks={projectTasks.filter((t) => t.status === 'Done' && t.code !== code)}
           value={dependencies}
           onChange={setDependencies}
+          emptyLabel="Ninguna tarea vinculada."
+          addLabel="+ Añadir tarea terminada…"
         />
         <span className="muted small">
           El agente recibirá su prompt, resumen, commit y outputs como contexto.
+        </span>
+      </div>
+
+      <div className="field">
+        <span className="field-label">Bloqueada por</span>
+        <DependencyPicker
+          tasks={projectTasks.filter((t) => t.status !== 'Cancelled' && t.code !== code)}
+          value={blockedBy}
+          onChange={setBlockedBy}
+          emptyLabel="No espera a ninguna tarea."
+          addLabel="+ Añadir tarea bloqueante…"
+          showStatus
+        />
+        <span className="muted small">
+          Al encolarla quedará Bloqueada hasta que todas estas tareas estén Hechas; entonces pasará a
+          Pendiente sola.
         </span>
       </div>
 

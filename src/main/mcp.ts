@@ -40,9 +40,12 @@ function taskProcedures(task: Task) {
   })
 }
 
-/** Done tasks this task builds on: what was asked, what was done and where the result lives. */
+/**
+ * Done tasks this task builds on (linked dependencies and blocking tasks):
+ * what was asked, what was done and where the result lives.
+ */
 function taskDependencies(task: Task) {
-  return task.dependencies.map((code) => {
+  return [...new Set([...task.dependencies, ...task.blockedBy])].map((code) => {
     const dep = db.getTask(code)
     return {
       code,

@@ -3,6 +3,7 @@ import type { TaskStatus } from '@shared/types'
 export const STATUS_LABELS: Record<TaskStatus, string> = {
   Created: 'Creada',
   Pending: 'Pendiente',
+  Blocked: 'Bloqueada',
   InProgress: 'En curso',
   WaitingForInput: 'Esperando respuesta',
   Stopped: 'Detenida',

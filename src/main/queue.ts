@@ -309,6 +309,18 @@ export async function tick(): Promise<void> {
   }
 }
 
+/** Moves to Pending every Blocked task whose blocking tasks are all Done. */
+function releaseBlocked(): void {
+  let released = false
+  for (const task of db.listBlockedTasks()) {
+    if (db.pendingBlockers(task).length > 0) continue
+    db.addEvent(task.code, 'system', 'Blocking tasks are Done: Blocked → Pending')
+    db.patchTask(task.code, { status: 'Pending' })
+    released = true
+  }
+  if (released) void tick()
+}
+
 export function startQueue(): void {
   // Anything left running from a previous session cannot be reattached.
   db.interruptRunningRuns()
@@ -318,6 +330,8 @@ export function startQueue(): void {
       db.patchTask(task.code, { status: 'Stopped' })
     }
   }
+  db.bus.on('done', () => releaseBlocked())
+  releaseBlocked()
   setInterval(() => void tick(), POLL_MS)
   void tick()
 }
@@ -352,6 +366,12 @@ export function setStatus(code: string, status: TaskStatus): Task {
   }
 
   db.addEvent(code, 'system', `Status changed manually: ${task.status} → ${status}`)
+  const blockers = status === 'Pending' ? db.pendingBlockers(task) : []
+  if (blockers.length > 0) {
+    // It waits for its blocking tasks; releaseBlocked() queues it when they are all Done.
+    db.addEvent(code, 'system', `Blocked until these tasks are Done: ${blockers.join(', ')}`)
+    return db.patchTask(code, { status: 'Blocked' })
+  }
   const updated = db.patchTask(code, { status })
   if (status === 'Pending') void tick()
   return updated
@@ -371,6 +391,8 @@ export function deleteTask(code: string): void {
     throw new Error(`No se pudieron borrar los ficheros de la tarea: ${(err as Error).message}`)
   }
   db.deleteTask(code)
+  // The deleted task may have been the last thing blocking another one.
+  releaseBlocked()
 }
 
 export function answerQuestion(code: string, answer: string, paths: string[] = []): Task {

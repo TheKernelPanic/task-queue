@@ -27,6 +27,7 @@ let lastTab: Tab = 'prompt'
 const ACTION_LABELS: Record<TaskStatus, string> = {
   Created: 'Creada',
   Pending: 'Encolar',
+  Blocked: 'Bloqueada',
   InProgress: 'En curso',
   WaitingForInput: 'Esperando',
   Stopped: 'Detener',
@@ -166,7 +167,7 @@ export default function TaskDetail({
         <TaskForm
           agents={agents}
           procedures={procedures.filter((p) => p.projectIds.includes(task.projectId))}
-          doneTasks={tasks.filter((t) => t.status === 'Done')}
+          projectTasks={tasks}
           initial={task}
           code={task.code}
           gitRepo={gitRepo}
@@ -200,6 +201,31 @@ export default function TaskDetail({
             {tab === 'prompt' && (
               <>
                 <Markdown>{task.prompt}</Markdown>
+                {task.blockedBy.length > 0 && (
+                  <div className="linked-procedures">
+                    <div className="field-label">Bloqueada por</div>
+                    <ol>
+                      {task.blockedBy.map((code) => {
+                        const blocker = tasksByCode.get(code)
+                        return (
+                          <li key={code}>
+                            <a
+                              href="#"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                onOpenTask(code)
+                              }}
+                            >
+                              <code>{code}</code> {blocker?.title}
+                            </a>{' '}
+                            {blocker && <StatusBadge status={blocker.status} />}
+                          </li>
+                        )
+                      })}
+                    </ol>
+                    <p className="muted small">No se ejecutará hasta que todas estén Hechas.</p>
+                  </div>
+                )}
                 {task.dependencies.length > 0 && (
                   <div className="linked-procedures">
                     <div className="field-label">Tareas previas</div>
