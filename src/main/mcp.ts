@@ -40,6 +40,21 @@ function taskProcedures(task: Task) {
   })
 }
 
+/** Done tasks this task builds on: what was asked, what was done and where the result lives. */
+function taskDependencies(task: Task) {
+  return task.dependencies.map((code) => {
+    const dep = db.getTask(code)
+    return {
+      code,
+      title: dep?.title,
+      prompt: dep?.prompt,
+      summary: dep?.summary,
+      commit: dep?.commitHash ? { hash: dep.commitHash, message: commitMessage(dep) } : null,
+      outputs: listFiles(outputsDir(code)).map((f) => f.path)
+    }
+  })
+}
+
 function buildServer(): McpServer {
   const server = new McpServer({ name: 'TaskQueue', version: '0.1.0' })
 
@@ -48,7 +63,7 @@ function buildServer(): McpServer {
     {
       title: 'Get task',
       description:
-        'Returns the instructions of a TaskQueue task: title, prompt, project path, the procedures to follow (with their full instructions), absolute paths of the resource files attached to the task, the output directory for deliverable files that do not belong to the project, the working directory for any other work outside the project (backups, scratch files, temporary clones…) and, if the task was resumed after a question, the answer from the user and any files attached to answers.',
+        'Returns the instructions of a TaskQueue task: title, prompt, project path, the procedures to follow (with their full instructions), the previously completed tasks it depends on (their prompt, summary, commit and output files, as context), absolute paths of the resource files attached to the task, the output directory for deliverable files that do not belong to the project, the working directory for any other work outside the project (backups, scratch files, temporary clones…) and, if the task was resumed after a question, the answer from the user and any files attached to answers.',
       inputSchema: { code: z.string().describe('Task code, e.g. DK-0001') }
     },
     async ({ code }) => {
@@ -64,6 +79,7 @@ function buildServer(): McpServer {
             projectPath: project?.path,
             prompt: task.prompt,
             procedures: taskProcedures(task),
+            dependencies: taskDependencies(task),
             resources: listFiles(resourcesDir(task.code)).map((f) => f.path),
             outputDir: outputsDir(task.code, true),
             workspaceDir: workspaceDir(task.code, true),

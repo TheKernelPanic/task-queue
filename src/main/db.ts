@@ -86,6 +86,13 @@ export function openDatabase(file: string): void {
       PRIMARY KEY (task_code, procedure_code)
     );
 
+    CREATE TABLE IF NOT EXISTS task_dependencies (
+      task_code TEXT NOT NULL REFERENCES tasks(code) ON DELETE CASCADE,
+      depends_on TEXT NOT NULL REFERENCES tasks(code) ON DELETE CASCADE,
+      position INTEGER NOT NULL,
+      PRIMARY KEY (task_code, depends_on)
+    );
+
     CREATE TABLE IF NOT EXISTS procedure_projects (
       procedure_code TEXT NOT NULL REFERENCES procedures(code) ON DELETE CASCADE,
       project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -162,6 +169,7 @@ function toTask(r: Row): Task {
     commitHash: (r.commit_hash as string) ?? null,
     procedures: taskProcedureCodes(r.code as string),
     procedureSnapshots: taskProcedureSnapshots(r.code as string),
+    dependencies: taskDependencyCodes(r.code as string),
     createdAt: r.created_at as string,
     updatedAt: r.updated_at as string
   }
@@ -287,6 +295,35 @@ function setTaskProcedures(taskCode: string, projectId: number, codes: string[])
   unique.forEach((code, i) => insert.run(taskCode, code, i))
 }
 
+function taskDependencyCodes(taskCode: string): string[] {
+  return (
+    db
+      .prepare('SELECT depends_on FROM task_dependencies WHERE task_code = ? ORDER BY position')
+      .all(taskCode) as Row[]
+  ).map((r) => r.depends_on as string)
+}
+
+/** Only Done tasks of the same project can be linked as dependencies. */
+function setTaskDependencies(taskCode: string, projectId: number, codes: string[]): void {
+  const unique = [...new Set(codes)].filter((c) => c !== taskCode)
+  const tasks = unique.map((c) => [c, getTask(c)] as const)
+  const missing = tasks.filter(([, t]) => !t).map(([c]) => c)
+  if (missing.length > 0) throw new Error(`Unknown tasks: ${missing.join(', ')}`)
+  const foreign = tasks.filter(([, t]) => t!.projectId !== projectId).map(([c]) => c)
+  if (foreign.length > 0) {
+    throw new Error(`Tareas que no pertenecen al proyecto de la tarea: ${foreign.join(', ')}`)
+  }
+  const notDone = tasks.filter(([, t]) => t!.status !== 'Done').map(([c]) => c)
+  if (notDone.length > 0) {
+    throw new Error(`Solo se pueden vincular tareas terminadas (Done): ${notDone.join(', ')}`)
+  }
+  db.prepare('DELETE FROM task_dependencies WHERE task_code = ?').run(taskCode)
+  const insert = db.prepare(
+    'INSERT INTO task_dependencies (task_code, depends_on, position) VALUES (?, ?, ?)'
+  )
+  unique.forEach((code, i) => insert.run(taskCode, code, i))
+}
+
 export function listTasks(projectId?: number): Task[] {
   const rows =
     projectId === undefined
@@ -318,6 +355,7 @@ export function createTask(input: NewTask): Task {
       input.commit ? 1 : 0
     )
     setTaskProcedures(code, input.projectId, input.procedures)
+    setTaskDependencies(code, input.projectId, input.dependencies ?? [])
     return getTask(code)!
   })
   bus.emit('task', task)
@@ -353,11 +391,10 @@ export function patchTask(code: string, patch: TaskPatch): Task {
       )
     }
     const current = getTask(code)
-    if (current && patch.procedures) {
-      setTaskProcedures(code, current.projectId, patch.procedures)
-      return getTask(code)
-    }
-    return current
+    if (!current || (!patch.procedures && !patch.dependencies)) return current
+    if (patch.procedures) setTaskProcedures(code, current.projectId, patch.procedures)
+    if (patch.dependencies) setTaskDependencies(code, current.projectId, patch.dependencies)
+    return getTask(code)
   })
   if (!task) throw new Error(`Task ${code} not found`)
   bus.emit('task', task)
@@ -367,7 +404,7 @@ export function patchTask(code: string, patch: TaskPatch): Task {
   return task
 }
 
-/** Removes a task; events, runs and procedure links go with it (ON DELETE CASCADE). */
+/** Removes a task; events, runs, procedure and dependency links go with it (ON DELETE CASCADE). */
 export function deleteTask(code: string): void {
   db.prepare('DELETE FROM tasks WHERE code = ?').run(code)
   bus.emit('deleted', code)

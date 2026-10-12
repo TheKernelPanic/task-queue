@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AGENT_COMMIT_LABELS, type AgentId, type AgentInfo, type Procedure, type Task } from '@shared/types'
+import DependencyPicker from './DependencyPicker'
 import DropZone from './DropZone'
 import MarkdownEditor from './MarkdownEditor'
 import ModelPicker from './ModelPicker'
@@ -13,6 +14,7 @@ interface TaskValues {
   model: string | null
   commit: boolean
   procedures: string[]
+  dependencies: string[]
   /** Files to copy into the task resources once created (only when withResources). */
   resourcePaths: string[]
 }
@@ -20,7 +22,9 @@ interface TaskValues {
 interface Props {
   agents: AgentInfo[]
   procedures: Procedure[]
-  initial?: Pick<Task, 'title' | 'prompt' | 'agent' | 'model' | 'commit' | 'procedures'>
+  /** Done tasks of the project that can be linked as dependencies. */
+  doneTasks: Task[]
+  initial?: Pick<Task, 'title' | 'prompt' | 'agent' | 'model' | 'commit' | 'procedures' | 'dependencies'>
   /** Code of the task being edited, to preview the commit message (new tasks have none yet). */
   code?: string
   /** Commits are only possible in git projects. */
@@ -35,6 +39,7 @@ interface Props {
 export default function TaskForm({
   agents,
   procedures,
+  doneTasks,
   initial,
   submitLabel,
   withResources,
@@ -50,6 +55,7 @@ export default function TaskForm({
   const [model, setModel] = useState<string | null>(initial?.model ?? null)
   const [commit, setCommit] = useState(initial?.commit ?? true)
   const [attached, setAttached] = useState<string[]>(initial?.procedures ?? [])
+  const [dependencies, setDependencies] = useState<string[]>(initial?.dependencies ?? [])
   const [resourcePaths, setResourcePaths] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
 
@@ -67,6 +73,7 @@ export default function TaskForm({
         model: model?.trim() || null,
         commit: gitRepo && commit,
         procedures: attached,
+        dependencies,
         resourcePaths
       })
     } catch (err) {
@@ -135,6 +142,18 @@ export default function TaskForm({
       <div className="field">
         <span className="field-label">Procedimientos</span>
         <ProcedurePicker procedures={procedures} value={attached} onChange={setAttached} />
+      </div>
+
+      <div className="field">
+        <span className="field-label">Tareas previas</span>
+        <DependencyPicker
+          tasks={doneTasks.filter((t) => t.code !== code)}
+          value={dependencies}
+          onChange={setDependencies}
+        />
+        <span className="muted small">
+          El agente recibirá su prompt, resumen, commit y outputs como contexto.
+        </span>
       </div>
 
       {withResources && (

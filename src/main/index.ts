@@ -94,7 +94,8 @@ function registerIpc(): void {
       agent: patch.agent,
       model: patch.model === undefined ? undefined : patch.model?.trim() || null,
       commit: patch.commit,
-      procedures: patch.procedures
+      procedures: patch.procedures,
+      dependencies: patch.dependencies
     })
   })
   ipcMain.handle('tasks:setStatus', (_e, code: string, status: TaskStatus) =>

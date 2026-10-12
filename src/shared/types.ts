@@ -64,6 +64,8 @@ export interface Task {
   procedures: string[]
   /** Copies of the linked procedures taken when the task was first queued (empty until then). */
   procedureSnapshots: ProcedureSnapshot[]
+  /** Codes of previously completed (Done) tasks of the same project this task builds on. */
+  dependencies: string[]
   createdAt: string
   updatedAt: string
 }
@@ -173,6 +175,7 @@ export interface NewTask {
   model: string | null
   commit: boolean
   procedures: string[]
+  dependencies: string[]
 }
 
 export interface TaskUpdate {
@@ -182,6 +185,7 @@ export interface TaskUpdate {
   model?: string | null
   commit?: boolean
   procedures?: string[]
+  dependencies?: string[]
 }
 
 export interface CommitInfo {

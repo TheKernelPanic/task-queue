@@ -38,11 +38,22 @@ interface Props {
   task: Task
   agents: AgentInfo[]
   procedures: Procedure[]
+  /** Tasks of the same project, to link and show dependencies. */
+  tasks: Task[]
   gitRepo: boolean
   onOpenProcedure: (code: string) => void
+  onOpenTask: (code: string) => void
 }
 
-export default function TaskDetail({ task, agents, procedures, gitRepo, onOpenProcedure }: Props) {
+export default function TaskDetail({
+  task,
+  agents,
+  procedures,
+  tasks,
+  gitRepo,
+  onOpenProcedure,
+  onOpenTask
+}: Props) {
   const [tab, setTabState] = useState<Tab>(lastTab)
   const [editing, setEditing] = useState(false)
   const [answer, setAnswer] = useState('')
@@ -52,6 +63,7 @@ export default function TaskDetail({ task, agents, procedures, gitRepo, onOpenPr
   const editable = isTaskEditable(task)
   const agentName = agents.find((a) => a.id === task.agent)?.name ?? task.agent
   const currentProcedures = new Map(procedures.map((p) => [p.code, p]))
+  const tasksByCode = new Map(tasks.map((t) => [t.code, t]))
 
   function setTab(next: Tab) {
     lastTab = next
@@ -154,6 +166,7 @@ export default function TaskDetail({ task, agents, procedures, gitRepo, onOpenPr
         <TaskForm
           agents={agents}
           procedures={procedures.filter((p) => p.projectIds.includes(task.projectId))}
+          doneTasks={tasks.filter((t) => t.status === 'Done')}
           initial={task}
           code={task.code}
           gitRepo={gitRepo}
@@ -187,6 +200,26 @@ export default function TaskDetail({ task, agents, procedures, gitRepo, onOpenPr
             {tab === 'prompt' && (
               <>
                 <Markdown>{task.prompt}</Markdown>
+                {task.dependencies.length > 0 && (
+                  <div className="linked-procedures">
+                    <div className="field-label">Tareas previas</div>
+                    <ol>
+                      {task.dependencies.map((code) => (
+                        <li key={code}>
+                          <a
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              onOpenTask(code)
+                            }}
+                          >
+                            <code>{code}</code> {tasksByCode.get(code)?.title}
+                          </a>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
                 {task.procedures.length > 0 && (
                   <div className="linked-procedures">
                     <div className="field-label">Procedimientos</div>
