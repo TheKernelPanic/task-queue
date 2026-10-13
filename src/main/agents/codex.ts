@@ -14,7 +14,7 @@ export const codexAdapter: AgentAdapter = {
   id: 'codex',
   name: 'Codex',
   executable: 'codex',
-  // No curated list: the model name is typed in the task form.
+  // detectAgents loads suggestions from the local Codex model catalog.
   models: [],
 
   buildArgs({

@@ -17,34 +17,44 @@ export default function ModelPicker({ agent, value, onChange }: Props) {
   const [custom, setCustom] = useState(!known)
 
   return (
-    <div className="row">
-      <select
-        value={custom ? CUSTOM : (value ?? '')}
-        onChange={(e) => {
-          if (e.target.value === CUSTOM) {
-            setCustom(true)
-            onChange(null)
-          } else {
-            setCustom(false)
-            onChange(e.target.value || null)
-          }
-        }}
-      >
-        <option value="">Por defecto del agente</option>
-        {models.map((m) => (
-          <option key={m.id} value={m.id}>
-            {m.label}
-          </option>
-        ))}
-        <option value={CUSTOM}>Otro…</option>
-      </select>
-      {custom && (
-        <input
-          value={value ?? ''}
-          onChange={(e) => onChange(e.target.value || null)}
-          placeholder="Nombre del modelo"
-          autoFocus
-        />
+    <div className="field">
+      <div className="row">
+        <select
+          aria-label="Modelo"
+          value={custom ? CUSTOM : (value ?? '')}
+          onChange={(e) => {
+            if (e.target.value === CUSTOM) {
+              setCustom(true)
+              onChange(null)
+            } else {
+              setCustom(false)
+              onChange(e.target.value || null)
+            }
+          }}
+        >
+          <option value="">Por defecto del agente</option>
+          {models.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
+          ))}
+          <option value={CUSTOM}>Otro…</option>
+        </select>
+        {custom && (
+          <input
+            aria-label="Nombre del modelo"
+            value={value ?? ''}
+            onChange={(e) => onChange(e.target.value || null)}
+            placeholder="Nombre del modelo"
+            autoFocus
+          />
+        )}
+      </div>
+      {agent?.id === 'codex' && models.length === 0 && (
+        <span className="muted small">
+          No hay modelos de Codex guardados localmente. Usa el modelo por defecto o selecciona
+          «Otro…» para escribir el nombre.
+        </span>
       )}
     </div>
   )
