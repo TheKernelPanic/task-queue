@@ -463,6 +463,9 @@ export function patchTask(code: string, patch: TaskPatch): Task {
   if (task.status === 'Done' && previousStatus !== undefined && previousStatus !== 'Done') {
     bus.emit('done', task)
   }
+  if (task.status === 'WaitingForInput' && previousStatus !== undefined && previousStatus !== 'WaitingForInput') {
+    bus.emit('question', task)
+  }
   return task
 }
 

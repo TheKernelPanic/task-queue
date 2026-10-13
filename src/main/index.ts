@@ -173,6 +173,7 @@ function registerIpc(): void {
   db.bus.on('event', (event) => mainWindow?.webContents.send('task:event', event))
   db.bus.on('run', (run) => mainWindow?.webContents.send('task:run', run))
   db.bus.on('done', (task) => mainWindow?.webContents.send('task:done', task))
+  db.bus.on('question', (task) => mainWindow?.webContents.send('task:question', task))
   db.bus.on('deleted', (code) => mainWindow?.webContents.send('task:deleted', code))
 }
 

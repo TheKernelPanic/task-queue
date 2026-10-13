@@ -8,7 +8,7 @@ import TaskDetail from './components/TaskDetail'
 import TaskForm from './components/TaskForm'
 import TaskList from './components/TaskList'
 import UpdateFooter from './components/UpdateFooter'
-import { playDoneChime } from './sound'
+import { playDoneChime, playQuestionAlert } from './sound'
 
 type View =
   | { kind: 'empty' }
@@ -40,6 +40,7 @@ export default function App() {
     void window.api.listProcedures().then(setProcedures)
 
     const offDone = window.api.onTaskDone(() => playDoneChime())
+    const offQuestion = window.api.onTaskQuestion(() => playQuestionAlert())
     const offDeleted = window.api.onTaskDeleted((code) => {
       setTasks((prev) => prev.filter((t) => t.code !== code))
       setView((v) => (v.kind === 'task' && v.code === code ? { kind: 'empty' } : v))
@@ -55,6 +56,7 @@ export default function App() {
     )
     return () => {
       offDone()
+      offQuestion()
       offDeleted()
       offChanged()
     }

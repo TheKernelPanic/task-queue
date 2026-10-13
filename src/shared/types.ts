@@ -295,4 +295,6 @@ export interface TaskQueueApi {
   onTaskEvent(cb: (event: TaskEvent) => void): () => void
   /** Fired once when a task transitions to Done. */
   onTaskDone(cb: (task: Task) => void): () => void
+  /** Fired once when an agent asks the user a question (task transitions to WaitingForInput). */
+  onTaskQuestion(cb: (task: Task) => void): () => void
 }

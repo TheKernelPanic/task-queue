@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Task } from '@shared/types'
-import StatusBadge from './StatusBadge'
+import { TASK_STATUSES, type Task, type TaskStatus } from '@shared/types'
+import StatusBadge, { STATUS_LABELS } from './StatusBadge'
 
 const PAGE_SIZE = 50
 
@@ -15,23 +15,32 @@ interface Props {
   onSelect: (code: string) => void
 }
 
-/** Task table with a title/prompt search box; rows render in pages as the list scrolls. */
+/** Task table with a title/prompt search box and a status filter; rows render in pages as the list scrolls. */
 export default function TaskList({ tasks, selectedCode, onSelect }: Props) {
   const [query, setQuery] = useState('')
+  const [status, setStatus] = useState<TaskStatus | ''>('')
   const [limit, setLimit] = useState(PAGE_SIZE)
   const sentinel = useRef<HTMLDivElement>(null)
 
   const filtered = useMemo(() => {
     const words = normalize(query).split(/\s+/).filter(Boolean)
-    if (words.length === 0) return tasks
+    if (words.length === 0 && !status) return tasks
     return tasks.filter((t) => {
+      if (status && t.status !== status) return false
       const haystack = normalize(`${t.title}\n${t.prompt}`)
       return words.every((w) => haystack.includes(w))
     })
-  }, [tasks, query])
+  }, [tasks, query, status])
 
-  // Start from the first page whenever the search changes.
-  useEffect(() => setLimit(PAGE_SIZE), [query])
+  const counts = useMemo(() => {
+    const byStatus = {} as Record<TaskStatus, number>
+    for (const s of TASK_STATUSES) byStatus[s] = 0
+    for (const t of tasks) byStatus[t.status]++
+    return byStatus
+  }, [tasks])
+
+  // Start from the first page whenever the search or filter changes.
+  useEffect(() => setLimit(PAGE_SIZE), [query, status])
 
   const hasMore = filtered.length > limit
 
@@ -58,7 +67,15 @@ export default function TaskList({ tasks, selectedCode, onSelect }: Props) {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
         />
-        {query && (
+        <select value={status} onChange={(e) => setStatus(e.target.value as TaskStatus | '')}>
+          <option value="">Todos los estados</option>
+          {TASK_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {STATUS_LABELS[s]} ({counts[s]})
+            </option>
+          ))}
+        </select>
+        {(query || status) && (
           <span className="muted small">
             {filtered.length} de {tasks.length}
           </span>
@@ -106,7 +123,13 @@ export default function TaskList({ tasks, selectedCode, onSelect }: Props) {
           <p className="muted">Crea una tarea para empezar a trabajar en este proyecto.</p>
         </div>
       ) : (
-        filtered.length === 0 && <p className="muted">Ninguna tarea coincide con «{query}».</p>
+        filtered.length === 0 && (
+          <p className="muted">
+            Ninguna tarea coincide
+            {query && <> con «{query}»</>}
+            {status && <> en estado {STATUS_LABELS[status]}</>}.
+          </p>
+        )
       )}
     </>
   )

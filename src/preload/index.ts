@@ -45,7 +45,8 @@ const api: TaskQueueApi = {
   onTaskChanged: (cb) => subscribe<Task>('task:changed', cb),
   onTaskDeleted: (cb) => subscribe<string>('task:deleted', cb),
   onTaskEvent: (cb) => subscribe<TaskEvent>('task:event', cb),
-  onTaskDone: (cb) => subscribe<Task>('task:done', cb)
+  onTaskDone: (cb) => subscribe<Task>('task:done', cb),
+  onTaskQuestion: (cb) => subscribe<Task>('task:question', cb)
 }
 
 contextBridge.exposeInMainWorld('api', api)
