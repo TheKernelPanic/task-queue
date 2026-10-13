@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, protocol, shell } from 'electron'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import {
@@ -20,6 +20,9 @@ import * as storage from './storage'
 import * as queue from './queue'
 import { backupOnVersionChange } from './backup'
 import * as updater from './updater'
+
+// Keep native window chrome and dialogs consistent with the renderer theme.
+nativeTheme.themeSource = 'dark'
 
 const APP_ID = 'com.thekernelpanic.taskqueue'
 
@@ -47,6 +50,7 @@ function createWindow(): void {
     minWidth: 900,
     minHeight: 600,
     title: 'TaskQueue',
+    backgroundColor: '#15171b',
     icon: join(
       process.env.ELECTRON_RENDERER_URL
         ? join(app.getAppPath(), 'src/renderer/public')
