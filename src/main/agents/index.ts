@@ -3,7 +3,7 @@ import { promisify } from 'node:util'
 import type { AgentId, AgentInfo } from '@shared/types'
 import { claudeAdapter } from './claude'
 import { codexAdapter } from './codex'
-import { loadCodexModels } from './codex-models'
+import { loadCodexDefaults, loadCodexModels } from './codex-models'
 import type { AgentAdapter } from './types'
 
 const execFileAsync = promisify(execFile)
@@ -65,8 +65,16 @@ export async function detectAgents(): Promise<AgentInfo[]> {
     Object.values(adapters).map(async (a) => {
       const path = await locate(a.executable)
       resolved.set(a.id, path)
-      const models = a.id === 'codex' ? await loadCodexModels() : a.models
-      return { id: a.id, name: a.name, path, installed: path !== null, models }
+      const info: AgentInfo = { id: a.id, name: a.name, path, installed: path !== null, models: a.models }
+      if (a.id === 'codex') {
+        const [models, defaults] = await Promise.all([loadCodexModels(), loadCodexDefaults()])
+        Object.assign(info, {
+          models,
+          defaultModel: defaults.model,
+          defaultReasoning: defaults.reasoningEffort
+        })
+      }
+      return info
     })
   )
 }

@@ -97,6 +97,8 @@ function registerIpc(): void {
       prompt: patch.prompt,
       agent: patch.agent,
       model: patch.model === undefined ? undefined : patch.model?.trim() || null,
+      reasoningEffort:
+        patch.reasoningEffort === undefined ? undefined : patch.reasoningEffort?.trim() || null,
       commit: patch.commit,
       procedures: patch.procedures,
       dependencies: patch.dependencies,

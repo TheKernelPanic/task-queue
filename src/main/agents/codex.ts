@@ -47,6 +47,7 @@ export const codexAdapter: AgentAdapter = {
       '--json',
       '--skip-git-repo-check',
       ...(task.model ? ['-m', task.model] : []),
+      ...(task.reasoningEffort ? ['-c', `model_reasoning_effort="${task.reasoningEffort}"`] : []),
       // Nobody can answer approval prompts in exec mode.
       '-c',
       'approval_policy="never"',

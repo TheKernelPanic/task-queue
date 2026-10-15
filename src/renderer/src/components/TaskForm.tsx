@@ -1,10 +1,18 @@
 import { useState } from 'react'
-import { AGENT_COMMIT_LABELS, type AgentId, type AgentInfo, type Procedure, type Task } from '@shared/types'
+import {
+  AGENT_COMMIT_LABELS,
+  reasoningLevelsFor,
+  type AgentId,
+  type AgentInfo,
+  type Procedure,
+  type Task
+} from '@shared/types'
 import DependencyPicker from './DependencyPicker'
 import DropZone from './DropZone'
 import MarkdownEditor from './MarkdownEditor'
 import ModelPicker from './ModelPicker'
 import ProcedurePicker from './ProcedurePicker'
+import ReasoningSlider from './ReasoningSlider'
 import Switch from './Switch'
 
 interface TaskValues {
@@ -12,6 +20,7 @@ interface TaskValues {
   prompt: string
   agent: AgentId
   model: string | null
+  reasoningEffort: string | null
   commit: boolean
   procedures: string[]
   dependencies: string[]
@@ -27,7 +36,15 @@ interface Props {
   projectTasks: Task[]
   initial?: Pick<
     Task,
-    'title' | 'prompt' | 'agent' | 'model' | 'commit' | 'procedures' | 'dependencies' | 'blockedBy'
+    | 'title'
+    | 'prompt'
+    | 'agent'
+    | 'model'
+    | 'reasoningEffort'
+    | 'commit'
+    | 'procedures'
+    | 'dependencies'
+    | 'blockedBy'
   >
   /** Code of the task being edited, to preview the commit message (new tasks have none yet). */
   code?: string
@@ -57,12 +74,14 @@ export default function TaskForm({
   const [prompt, setPrompt] = useState(initial?.prompt ?? '')
   const [agent, setAgent] = useState<AgentId>(initial?.agent ?? defaultAgent)
   const [model, setModel] = useState<string | null>(initial?.model ?? null)
+  const [reasoningEffort, setReasoningEffort] = useState<string | null>(initial?.reasoningEffort ?? null)
   const [commit, setCommit] = useState(initial?.commit ?? true)
   const [attached, setAttached] = useState<string[]>(initial?.procedures ?? [])
   const [dependencies, setDependencies] = useState<string[]>(initial?.dependencies ?? [])
   const [blockedBy, setBlockedBy] = useState<string[]>(initial?.blockedBy ?? [])
   const [resourcePaths, setResourcePaths] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
+  const selectedAgent = agents.find((a) => a.id === agent)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -76,6 +95,7 @@ export default function TaskForm({
         prompt,
         agent,
         model: model?.trim() || null,
+        reasoningEffort: agent === 'codex' ? reasoningEffort : null,
         commit: gitRepo && commit,
         procedures: attached,
         dependencies,
@@ -101,6 +121,7 @@ export default function TaskForm({
           onChange={(e) => {
             setAgent(e.target.value as AgentId)
             setModel(null)
+            setReasoningEffort(null)
           }}
         >
           {agents.map((a) => (
@@ -116,11 +137,25 @@ export default function TaskForm({
         <span className="field-label">Modelo</span>
         <ModelPicker
           key={agent}
-          agent={agents.find((a) => a.id === agent)}
+          agent={selectedAgent}
           value={model}
-          onChange={setModel}
+          onChange={(next) => {
+            setModel(next)
+            // Keep the effort only if the new model supports it.
+            const levels = reasoningLevelsFor(selectedAgent, next)
+            if (!levels.some((l) => l.effort === reasoningEffort)) setReasoningEffort(null)
+          }}
         />
       </div>
+
+      {agent === 'codex' && (
+        <ReasoningSlider
+          agent={selectedAgent}
+          model={model}
+          value={reasoningEffort}
+          onChange={setReasoningEffort}
+        />
+      )}
 
       <div className="field">
         <Switch

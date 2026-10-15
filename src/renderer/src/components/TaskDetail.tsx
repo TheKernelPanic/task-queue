@@ -91,6 +91,11 @@ export default function TaskDetail({
         <div className="meta">
           Agente: {agentName}
           {' · '}Modelo: {task.model ? <code>{task.model}</code> : 'por defecto'}
+          {task.agent === 'codex' && (
+            <>
+              {' · '}Esfuerzo: {task.reasoningEffort ? <code>{task.reasoningEffort}</code> : 'por defecto'}
+            </>
+          )}
           {' · '}Commit:{' '}
           {task.commit && gitRepo ? <code>{commitMessage(task)}</code> : 'no'}
           {task.sessionId && <> · Sesión: <code>{task.sessionId.slice(0, 8)}</code></>}

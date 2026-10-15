@@ -1216,3 +1216,38 @@ label.switch {
 :root .event-system { border-left-color: var(--green); }
 :root .event-error { border-left-color: var(--danger); }
 :root .file-card.playing .play { background: #30476d; border-color: #5779ab; }
+
+/* Reasoning effort slider */
+.reasoning-slider strong {
+  color: var(--text);
+  font-weight: 600;
+}
+:root .reasoning-slider input[type='range'] {
+  width: 100%;
+  padding: 0;
+  margin: 4px 0 0;
+  border: 0;
+  background: transparent;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.reasoning-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+}
+.reasoning-ticks span {
+  flex: 1;
+  text-align: center;
+}
+.reasoning-ticks span:first-child {
+  text-align: left;
+}
+.reasoning-ticks span:last-child {
+  text-align: right;
+}
+.reasoning-ticks span.active {
+  color: var(--accent);
+  font-weight: 600;
+}

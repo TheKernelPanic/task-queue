@@ -4,7 +4,8 @@ import type { AddressInfo } from 'node:net'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { z } from 'zod'
-import { commitMessage, type Task } from '@shared/types'
+import { commitMessage, reasoningLevelsFor, type Task } from '@shared/types'
+import { detectAgents } from './agents'
 import * as db from './db'
 import { answersDir, listFiles, outputsDir, resourcesDir, workspaceDir } from './storage'
 
@@ -56,6 +57,57 @@ function taskDependencies(task: Task) {
       outputs: listFiles(outputsDir(code)).map((f) => f.path)
     }
   })
+}
+
+/**
+ * Everything create_task accepts for a new task in the project of `parent`: agents with their
+ * models and reasoning levels, the project's procedures and the tasks that can be linked.
+ */
+async function taskCreationOptions(parent: Task) {
+  const project = db.getProject(parent.projectId)
+  const agents = await detectAgents()
+  const tasks = db.listTasks(parent.projectId).filter((t) => t.status !== 'Cancelled')
+  return {
+    project: { name: project?.name, path: project?.path, isGitRepo: project?.isGitRepo ?? false },
+    defaults: {
+      agent: parent.agent,
+      model: null,
+      reasoning_effort: null,
+      commit: project?.isGitRepo ?? false
+    },
+    agents: agents.map((a) => ({
+      id: a.id,
+      name: a.name,
+      installed: a.installed,
+      defaultModel: a.defaultModel ?? null,
+      defaultReasoningEffort: a.defaultReasoning ?? null,
+      models: a.models.map((m) => ({
+        id: m.id,
+        label: m.label,
+        ...(m.reasoningLevels && {
+          reasoningEfforts: m.reasoningLevels.map((l) => l.effort),
+          defaultReasoningEffort: m.defaultReasoning ?? null
+        })
+      }))
+    })),
+    procedures: db
+      .listProcedures()
+      .filter((p) => p.projectIds.includes(parent.projectId))
+      .map((p) => ({ code: p.code, title: p.title })),
+    tasks: tasks.map((t) => ({
+      code: t.code,
+      title: t.title,
+      status: t.status,
+      canBeDependency: t.status === 'Done',
+      canBlock: true
+    })),
+    notes: [
+      'model: omit it to use the agent default; any id from agents[].models is valid, and for Claude also a full model id.',
+      'reasoning_effort: Codex only; one of the reasoningEfforts of the chosen model (or of defaultModel if no model is set).',
+      'dependencies: only tasks with canBeDependency (Done). blocked_by: any listed task; Cancelled tasks are not listed.',
+      'commit: only possible if project.isGitRepo.'
+    ]
+  }
 }
 
 function buildServer(): McpServer {
@@ -171,6 +223,158 @@ function buildServer(): McpServer {
             title: procedure.title,
             prompt: procedure.prompt,
             projectIds: procedure.projectIds
+          },
+          null,
+          2
+        )
+      )
+    }
+  )
+
+  server.registerTool(
+    'get_task_creation_options',
+    {
+      title: 'Get task creation options',
+      description: [
+        'Returns every value create_task accepts for a new task in the project of the given task: whether the project is a git repository, the defaults that apply when a field is omitted, the agents (installed or not) with their models and the reasoning efforts each model supports, the procedures of the project, and the tasks of the project that can be linked (code, title, status and whether each one can be a dependency or a blocker).',
+        'ALWAYS call it before create_task and use only codes and values it returns; never guess task codes, procedure codes, model ids or reasoning efforts.'
+      ].join('\n'),
+      inputSchema: {
+        task_code: z.string().describe('Code of the task you are executing, e.g. DK-0001')
+      }
+    },
+    async ({ task_code }) => {
+      const parent = db.getTask(task_code)
+      if (!parent) return fail(`Task ${task_code} not found`)
+      return text(JSON.stringify(await taskCreationOptions(parent), null, 2))
+    }
+  )
+
+  server.registerTool(
+    'create_task',
+    {
+      title: 'Create task',
+      description: [
+        'Creates a new TaskQueue task in the project of the task you are executing and returns it (code, title, status…).',
+        'The new task is always created in status Created: it is a draft that does NOT run. Only the user can review it, edit it and queue it; you cannot start or queue it, and you must not wait for it.',
+        'Use it only when the task asks you to plan or split work into tasks, or when you find follow-up work that is clearly out of the scope of your task and the user should decide on. Do not use it to delegate part of your own task; do that work yourself.',
+        'Write the prompt as standalone Markdown addressed to a future agent who has no context of this task: the goal, relevant files or absolute paths, constraints and how to verify the result.',
+        'Call get_task_creation_options first: it lists the agents, models, reasoning efforts, procedures and tasks you can use. Optional links must belong to the same project: procedures, dependencies (tasks already Done, given as context) and blocked_by (tasks that must be Done before it runs).',
+        'Invalid values (an agent that is not installed, an unsupported reasoning effort, unknown or unlinkable codes…) are rejected with the reason and nothing is created; fix them and call again.',
+        'Each call creates a new task with a new code, so do not call it twice for the same work. Mention the codes of the tasks you created in your complete_task summary.'
+      ].join('\n'),
+      inputSchema: {
+        task_code: z
+          .string()
+          .describe('Code of the task you are executing, e.g. DK-0001. The new task is created in its project and the creation is logged in its history.'),
+        title: z
+          .string()
+          .trim()
+          .min(1)
+          .max(120)
+          .describe('Short, descriptive title, e.g. "Add pagination to the users list"'),
+        prompt: z
+          .string()
+          .trim()
+          .min(1)
+          .describe('Full Markdown instructions of the task, self-contained and addressed to the agent that will execute it'),
+        agent: z
+          .enum(['claude', 'codex'])
+          .optional()
+          .describe('Agent that will execute it. Defaults to the agent of the current task.'),
+        model: z
+          .string()
+          .trim()
+          .optional()
+          .describe("Model for the agent. Omit it to use the agent's default; only set it if the task asks for a specific model."),
+        reasoning_effort: z
+          .string()
+          .trim()
+          .optional()
+          .describe('Codex only: reasoning effort, e.g. low, medium, high. Omit it to use the default.'),
+        commit: z
+          .boolean()
+          .optional()
+          .describe('Whether the agent must commit its changes. Defaults to true; ignored if the project is not a git repository.'),
+        procedures: z
+          .array(z.string())
+          .optional()
+          .describe('Codes of procedures of the project to follow, in order, e.g. ["PR-0001"]'),
+        dependencies: z
+          .array(z.string())
+          .optional()
+          .describe('Codes of Done tasks of the project whose prompt, summary, commit and outputs are given as context'),
+        blocked_by: z
+          .array(z.string())
+          .optional()
+          .describe('Codes of tasks of the project (not Cancelled) that must be Done before the new task runs')
+      }
+    },
+    async (input) => {
+      const parent = db.getTask(input.task_code)
+      if (!parent) return fail(`Task ${input.task_code} not found`)
+      const project = db.getProject(parent.projectId)
+      if (!project) return fail(`Project of task ${input.task_code} not found`)
+      const agent = input.agent ?? parent.agent
+      const model = input.model || null
+      const effort = input.reasoning_effort || null
+      const info = (await detectAgents()).find((a) => a.id === agent)
+      const errors: string[] = []
+      const warnings: string[] = []
+      if (!info?.installed) errors.push(`Agent ${agent} is not installed`)
+      if (effort) {
+        const levels = reasoningLevelsFor(info, model).map((l) => l.effort)
+        if (agent !== 'codex') errors.push('reasoning_effort is only supported by codex')
+        else if (levels.length > 0 && !levels.includes(effort)) {
+          errors.push(
+            `Reasoning effort "${effort}" is not supported by ${model ?? 'the default model'}; use one of: ${levels.join(', ')}`
+          )
+        }
+      }
+      if (model && info && !info.models.some((m) => m.id === model)) {
+        warnings.push(`Model "${model}" is not among the known models of ${agent}; it is passed to the agent as is`)
+      }
+      if (input.commit && !project.isGitRepo) {
+        warnings.push('The project is not a git repository; commit was set to false')
+      }
+      if (errors.length > 0) {
+        return fail(`Task not created:\n- ${errors.join('\n- ')}\nCall get_task_creation_options to see the valid values.`)
+      }
+      let task
+      try {
+        task = db.createTask({
+          projectId: parent.projectId,
+          title: input.title,
+          prompt: input.prompt,
+          agent,
+          model,
+          reasoningEffort: effort,
+          commit: project.isGitRepo && (input.commit ?? true),
+          procedures: input.procedures ?? [],
+          dependencies: input.dependencies ?? [],
+          blockedBy: input.blocked_by ?? []
+        })
+      } catch (err) {
+        return fail(
+          `Task not created: ${err instanceof Error ? err.message : String(err)}\nCall get_task_creation_options to see the valid values.`
+        )
+      }
+      db.addEvent(input.task_code, 'system', `Agent created task ${task.code}: ${task.title}`)
+      return text(
+        JSON.stringify(
+          {
+            code: task.code,
+            title: task.title,
+            status: task.status,
+            agent: task.agent,
+            model: task.model,
+            reasoningEffort: task.reasoningEffort,
+            commit: task.commit,
+            procedures: task.procedures,
+            dependencies: task.dependencies,
+            blockedBy: task.blockedBy,
+            warnings,
+            note: 'The task is in status Created; the user will review and queue it.'
           },
           null,
           2

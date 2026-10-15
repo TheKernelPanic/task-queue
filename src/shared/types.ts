@@ -21,10 +21,20 @@ export const AGENT_COMMIT_LABELS: Record<AgentId, string> = {
 
 export type PermissionMode = 'acceptEdits' | 'bypassPermissions'
 
+/** A reasoning effort level a model supports (Codex `model_reasoning_effort`). */
+export interface ReasoningLevel {
+  effort: string
+  description: string
+}
+
 export interface ModelOption {
   /** Value passed to the agent CLI (alias or full model name). */
   id: string
   label: string
+  /** Reasoning effort levels, from lightest to deepest; absent if the agent does not expose them. */
+  reasoningLevels?: ReasoningLevel[]
+  /** Level the model uses when none is chosen. */
+  defaultReasoning?: string
 }
 
 export interface AgentInfo {
@@ -34,6 +44,23 @@ export interface AgentInfo {
   installed: boolean
   /** Suggested models; any other model name can be typed in. */
   models: ModelOption[]
+  /** Model the agent uses when the task has none (from its local config), if known. */
+  defaultModel?: string | null
+  /** Reasoning effort the agent uses when the task has none (from its local config), if known. */
+  defaultReasoning?: string | null
+}
+
+/**
+ * Reasoning levels available for a model: its own from the catalog, or, for the default or a
+ * typed-in model, those of the configured default model or every level in the catalog.
+ */
+export function reasoningLevelsFor(agent: AgentInfo | undefined, model: string | null): ReasoningLevel[] {
+  const models = agent?.models ?? []
+  const own = models.find((m) => m.id === (model ?? agent?.defaultModel))?.reasoningLevels
+  if (own) return own
+  const all = new Map<string, ReasoningLevel>()
+  for (const m of models) for (const l of m.reasoningLevels ?? []) if (!all.has(l.effort)) all.set(l.effort, l)
+  return [...all.values()]
 }
 
 export interface Project {
@@ -53,6 +80,8 @@ export interface Task {
   agent: AgentId
   /** Model for the agent; null uses the agent's default. */
   model: string | null
+  /** Reasoning effort (Codex only); null uses the agent's default. */
+  reasoningEffort: string | null
   /** Whether the agent must commit its changes (message: commitMessage(task)). */
   commit: boolean
   status: TaskStatus
@@ -176,6 +205,7 @@ export interface NewTask {
   prompt: string
   agent: AgentId
   model: string | null
+  reasoningEffort: string | null
   commit: boolean
   procedures: string[]
   dependencies: string[]
@@ -187,6 +217,7 @@ export interface TaskUpdate {
   prompt?: string
   agent?: AgentId
   model?: string | null
+  reasoningEffort?: string | null
   commit?: boolean
   procedures?: string[]
   dependencies?: string[]

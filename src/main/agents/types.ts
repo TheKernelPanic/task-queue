@@ -99,6 +99,8 @@ export function systemInstructions(task: Task, project: Project): string {
     '   never write outside the project, outputDir or workspaceDir.',
     '5. If you need a decision from the user to continue, call ask_user and then stop immediately.',
     '   If the task asks you to create a reusable procedure for future tasks, use create_procedure.',
+    '   If the task asks you to create new tasks, call get_task_creation_options first and then create_task;',
+    '   they stay as drafts for the user to queue.',
     `6. When finished, call complete_task with code "${code}" and a Markdown summary of the work.`,
     commitInstruction(task, project)
   ].join('\n')
