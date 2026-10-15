@@ -297,4 +297,6 @@ export interface TaskQueueApi {
   onTaskDone(cb: (task: Task) => void): () => void
   /** Fired once when an agent asks the user a question (task transitions to WaitingForInput). */
   onTaskQuestion(cb: (task: Task) => void): () => void
+  /** Fired when a procedure is created, including by an agent through the MCP server. */
+  onProcedureChanged(cb: (procedure: Procedure) => void): () => void
 }

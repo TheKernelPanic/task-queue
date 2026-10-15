@@ -49,6 +49,8 @@ Cada procedimiento pertenece a uno o varios proyectos, y como mínimo a uno. Una
 
 Al crear o editar una tarea se le pueden vincular procedimientos, en orden. Al encolar la tarea (Created → Pending) se guarda una **copia** de cada procedimiento vinculado. `get_task` devuelve los procedimientos con sus instrucciones completas tomadas de esa copia, así que editar un procedimiento no afecta a las tareas ya encoladas. La ficha avisa si el procedimiento se ha modificado después. `get_procedure(code, task_code?)` devuelve la copia de la tarea si se le pasa `task_code`. Un procedimiento vinculado a alguna tarea no se puede eliminar.
 
+Un agente también puede crear procedimientos con la tool MCP `create_procedure(task_code, title, prompt)`. El procedimiento se crea en el proyecto de la tarea, queda registrado en su History y aparece al momento en la biblioteca. No se vincula a la tarea en curso; el usuario puede revisarlo, editarlo o borrarlo después. La descripción de la tool le indica al agente que la use solo si la tarea lo pide o si ha dado con un proceso repetible, y que escriba instrucciones autocontenidas para un futuro agente.
+
 ### Recursos y outputs
 
 Cada tarea tiene sus carpetas internas en `%APPDATA%/task-queue/storage/`:

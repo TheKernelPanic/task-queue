@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
-import type { Task, TaskEvent, TaskQueueApi, TaskRun, UpdateInfo } from '@shared/types'
+import type { Procedure, Task, TaskEvent, TaskQueueApi, TaskRun, UpdateInfo } from '@shared/types'
 
 function subscribe<T>(channel: string, cb: (value: T) => void): () => void {
   const listener = (_e: IpcRendererEvent, value: T) => cb(value)
@@ -46,7 +46,8 @@ const api: TaskQueueApi = {
   onTaskDeleted: (cb) => subscribe<string>('task:deleted', cb),
   onTaskEvent: (cb) => subscribe<TaskEvent>('task:event', cb),
   onTaskDone: (cb) => subscribe<Task>('task:done', cb),
-  onTaskQuestion: (cb) => subscribe<Task>('task:question', cb)
+  onTaskQuestion: (cb) => subscribe<Task>('task:question', cb),
+  onProcedureChanged: (cb) => subscribe<Procedure>('procedure:changed', cb)
 }
 
 contextBridge.exposeInMainWorld('api', api)

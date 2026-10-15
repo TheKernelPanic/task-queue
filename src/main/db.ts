@@ -543,7 +543,7 @@ function setProcedureProjects(code: string, projectIds: number[]): void {
 }
 
 export function createProcedure(input: ProcedureInput): Procedure {
-  return transaction(() => {
+  const procedure = transaction(() => {
     const code = nextCode('procedure', PROCEDURE_PREFIX)
     db.prepare('INSERT INTO procedures (code, title, prompt) VALUES (?, ?, ?)').run(
       code,
@@ -553,6 +553,8 @@ export function createProcedure(input: ProcedureInput): Procedure {
     setProcedureProjects(code, input.projectIds)
     return getProcedure(code)!
   })
+  bus.emit('procedure', procedure)
+  return procedure
 }
 
 export function updateProcedure(code: string, input: ProcedureInput): Procedure {

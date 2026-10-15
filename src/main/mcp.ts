@@ -127,6 +127,59 @@ function buildServer(): McpServer {
   )
 
   server.registerTool(
+    'create_procedure',
+    {
+      title: 'Create procedure',
+      description: [
+        'Creates a new reusable TaskQueue procedure in the project of the given task and returns it (code, title, prompt, projectIds).',
+        'A procedure is a block of instructions that the user can later link to other tasks of the same project; agents running those tasks receive it in get_task and must follow it.',
+        'Use it only when the task asks you to create a procedure, or when you have worked out a repeatable process (release steps, a review checklist, how to run a migration…) that future tasks should follow. Do not use it to store notes, summaries or results of the current task; those go in complete_task or outputDir.',
+        'Write the prompt as standalone Markdown addressed to a future agent who has no context of this task: state the goal, the steps in order, the commands to run, the files or absolute paths involved and how to verify the result.',
+        'The procedure is NOT linked to the current task (its procedures are frozen once queued) and the user can edit or delete it afterwards. Each call creates a new procedure with a new code (PR-0001, …), so do not call it twice for the same procedure; use get_procedure to read an existing one.'
+      ].join('\n'),
+      inputSchema: {
+        task_code: z
+          .string()
+          .describe('Code of the task you are executing, e.g. DK-0001. The procedure is created in its project and the creation is logged in its history.'),
+        title: z
+          .string()
+          .trim()
+          .min(1)
+          .max(120)
+          .describe('Short, descriptive title shown in the procedure library, e.g. "Publish a release"'),
+        prompt: z
+          .string()
+          .trim()
+          .min(1)
+          .describe('Full Markdown instructions of the procedure, self-contained and addressed to the agent that will follow it')
+      }
+    },
+    async ({ task_code, title, prompt }) => {
+      const task = db.getTask(task_code)
+      if (!task) return fail(`Task ${task_code} not found`)
+      let procedure
+      try {
+        procedure = db.createProcedure({ title, prompt, projectIds: [task.projectId] })
+      } catch (err) {
+        return fail(`Could not create the procedure: ${err instanceof Error ? err.message : String(err)}`)
+      }
+      db.addEvent(task_code, 'system', `Agent created procedure ${procedure.code}: ${procedure.title}`)
+      return text(
+        JSON.stringify(
+          {
+            code: procedure.code,
+            title: procedure.title,
+            prompt: procedure.prompt,
+            projectIds: procedure.projectIds
+          },
+          null,
+          2
+        )
+      )
+    }
+  )
+
+  server.registerTool(
     'start_task',
     {
       title: 'Start task',

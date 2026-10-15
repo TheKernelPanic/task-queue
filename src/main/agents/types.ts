@@ -98,6 +98,7 @@ export function systemInstructions(task: Task, project: Project): string {
     '   Anything else you need outside the project (backups, scratch files, temporary clones…) goes in "workspaceDir";',
     '   never write outside the project, outputDir or workspaceDir.',
     '5. If you need a decision from the user to continue, call ask_user and then stop immediately.',
+    '   If the task asks you to create a reusable procedure for future tasks, use create_procedure.',
     `6. When finished, call complete_task with code "${code}" and a Markdown summary of the work.`,
     commitInstruction(task, project)
   ].join('\n')

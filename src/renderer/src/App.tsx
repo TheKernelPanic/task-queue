@@ -54,11 +54,13 @@ export default function App() {
         return next
       })
     )
+    const offProcedure = window.api.onProcedureChanged(upsertProcedure)
     return () => {
       offDone()
       offQuestion()
       offDeleted()
       offChanged()
+      offProcedure()
     }
   }, [])
 

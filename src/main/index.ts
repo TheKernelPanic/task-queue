@@ -179,6 +179,7 @@ function registerIpc(): void {
   db.bus.on('done', (task) => mainWindow?.webContents.send('task:done', task))
   db.bus.on('question', (task) => mainWindow?.webContents.send('task:question', task))
   db.bus.on('deleted', (code) => mainWindow?.webContents.send('task:deleted', code))
+  db.bus.on('procedure', (procedure) => mainWindow?.webContents.send('procedure:changed', procedure))
 }
 
 // The Done chime must play even if the window never received a user gesture.
