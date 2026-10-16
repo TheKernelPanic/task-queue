@@ -89,7 +89,8 @@ export default function TaskDetail({
           <StatusBadge status={task.status} />
         </div>
         <div className="meta">
-          Agente: {agentName}
+          Tipo: {task.type}
+          {' · '}Agente: {agentName}
           {' · '}Modelo: {task.model ? <code>{task.model}</code> : 'por defecto'}
           {task.agent === 'codex' && (
             <>

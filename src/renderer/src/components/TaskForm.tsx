@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import {
   AGENT_COMMIT_LABELS,
+  TASK_TYPES,
+  type TaskType,
   reasoningLevelsFor,
   type AgentId,
   type AgentInfo,
@@ -16,6 +18,7 @@ import ReasoningSlider from './ReasoningSlider'
 import Switch from './Switch'
 
 interface TaskValues {
+  type: TaskType
   title: string
   prompt: string
   agent: AgentId
@@ -36,6 +39,7 @@ interface Props {
   projectTasks: Task[]
   initial?: Pick<
     Task,
+    | 'type'
     | 'title'
     | 'prompt'
     | 'agent'
@@ -70,6 +74,7 @@ export default function TaskForm({
   onCancel
 }: Props) {
   const defaultAgent = agents.find((a) => a.installed)?.id ?? 'claude'
+  const [type, setType] = useState<TaskType>(initial?.type ?? 'Feature')
   const [title, setTitle] = useState(initial?.title ?? '')
   const [prompt, setPrompt] = useState(initial?.prompt ?? '')
   const [agent, setAgent] = useState<AgentId>(initial?.agent ?? defaultAgent)
@@ -91,6 +96,7 @@ export default function TaskForm({
     }
     try {
       await onSubmit({
+        type,
         title: title.trim(),
         prompt,
         agent,
@@ -112,6 +118,13 @@ export default function TaskForm({
       <label>
         Título
         <input value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
+      </label>
+
+      <label>
+        Tipo
+        <select value={type} onChange={(e) => setType(e.target.value as TaskType)}>
+          {TASK_TYPES.map((value) => <option key={value} value={value}>{value}</option>)}
+        </select>
       </label>
 
       <label>

@@ -1,6 +1,6 @@
 {
   "name": "task-queue",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Desktop task queue that dispatches prompts to local coding agents (Claude Code, Codex) via MCP",
   "main": "./out/main/index.js",
   "private": true,

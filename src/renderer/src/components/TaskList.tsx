@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { TASK_STATUSES, type Task, type TaskStatus } from '@shared/types'
+import TaskTypeIcon from './TaskTypeIcon'
 import StatusBadge, { STATUS_LABELS } from './StatusBadge'
 
 const PAGE_SIZE = 50
@@ -15,7 +16,7 @@ interface Props {
   onSelect: (code: string) => void
 }
 
-/** Task table with a title/prompt search box and a status filter; rows render in pages as the list scrolls. */
+/** Searchable task cards, rendered in pages as the list scrolls. */
 export default function TaskList({ tasks, selectedCode, onSelect }: Props) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<TaskStatus | ''>('')
@@ -82,38 +83,29 @@ export default function TaskList({ tasks, selectedCode, onSelect }: Props) {
         )}
       </div>
       {filtered.length > 0 && (
-        <table className="task-table">
-          <thead>
-            <tr>
-              <th>Código</th>
-              <th>Título</th>
-              <th>Agente</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.slice(0, limit).map((t) => (
-              <tr
-                key={t.code}
+        <ul className="task-cards" aria-label="Tareas">
+          {filtered.slice(0, limit).map((t) => (
+            <li key={t.code}>
+              <button
+                type="button"
                 data-status={t.status}
-                className={selectedCode === t.code ? 'selected' : ''}
+                className={`task-card${selectedCode === t.code ? ' selected' : ''}`}
+                aria-pressed={selectedCode === t.code}
                 onClick={() => onSelect(t.code)}
               >
-                <td>
-                  <code>{t.code}</code>
-                </td>
-                <td>{t.title}</td>
-                <td>
-                  {t.agent}
-                  {t.model && <span className="muted small"> · {t.model}</span>}
-                </td>
-                <td>
+                <span className="task-card-header">
+                  <code className="task-card-code">{t.code}</code>
                   <StatusBadge status={t.status} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </span>
+                <span className="task-card-title"><TaskTypeIcon type={t.type} /><span>{t.title}</span></span>
+                <span className="task-card-meta">
+                  <span>{t.agent === 'codex' ? 'Codex' : 'Claude'}</span>
+                  {t.model && <span className="task-card-model">{t.model}</span>}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
       {hasMore && <div ref={sentinel} className="muted small task-list-more">Cargando más…</div>}
       {tasks.length === 0 ? (

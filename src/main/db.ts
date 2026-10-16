@@ -1,4 +1,5 @@
 import { DatabaseSync } from 'node:sqlite'
+import { TASK_TYPES } from '../shared/types'
 import { EventEmitter } from 'node:events'
 import type {
   NewProject,
@@ -135,6 +136,7 @@ export function openDatabase(file: string): void {
   addColumn('task_procedures', 'snapshot_title', 'TEXT')
   addColumn('task_procedures', 'snapshot_prompt', 'TEXT')
   addColumn('task_procedures', 'snapshot_at', 'TEXT')
+  addColumn('tasks', 'type', "TEXT NOT NULL DEFAULT 'Feature' CHECK (type IN ('Bug', 'Feature', 'Documentation', 'Planning', 'Analysis'))")
   addColumn('tasks', 'model', 'TEXT')
   addColumn('tasks', 'auto_commit', 'INTEGER NOT NULL DEFAULT 1')
   addColumn('tasks', 'reasoning_effort', 'TEXT')
@@ -164,6 +166,7 @@ function toTask(r: Row): Task {
   return {
     code: r.code as string,
     projectId: r.project_id as number,
+    type: r.type as Task['type'],
     title: r.title as string,
     prompt: r.prompt as string,
     agent: r.agent as Task['agent'],
@@ -402,11 +405,13 @@ export function getTask(code: string): Task | null {
 }
 
 export function createTask(input: NewTask): Task {
+  const type = input.type === undefined ? 'Feature' : input.type
+  if (!TASK_TYPES.includes(type)) throw new Error('Invalid task type')
   const task = transaction(() => {
     const code = nextCode('task', TASK_PREFIX)
     db.prepare(
-      `INSERT INTO tasks (code, project_id, title, prompt, agent, model, reasoning_effort, auto_commit)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO tasks (code, project_id, title, prompt, agent, model, reasoning_effort, auto_commit, type)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       code,
       input.projectId,
@@ -415,7 +420,8 @@ export function createTask(input: NewTask): Task {
       input.agent,
       input.model?.trim() || null,
       input.reasoningEffort?.trim() || null,
-      input.commit ? 1 : 0
+      input.commit ? 1 : 0,
+      type
     )
     setTaskProcedures(code, input.projectId, input.procedures)
     setTaskDependencies(code, input.projectId, input.dependencies ?? [])
@@ -427,6 +433,7 @@ export function createTask(input: NewTask): Task {
 }
 
 const COLUMN_MAP: Record<string, string> = {
+  type: 'type',
   title: 'title',
   prompt: 'prompt',
   agent: 'agent',
@@ -445,6 +452,7 @@ export type TaskPatch = TaskUpdate &
   Partial<Pick<Task, 'status' | 'summary' | 'question' | 'answer' | 'sessionId' | 'commitHash'>>
 
 export function patchTask(code: string, patch: TaskPatch): Task {
+  if (patch.type !== undefined && !TASK_TYPES.includes(patch.type)) throw new Error('Invalid task type')
   const entries = Object.entries(patch).filter(([k, v]) => v !== undefined && k in COLUMN_MAP)
   const previousStatus = patch.status ? getTask(code)?.status : undefined
   const task = transaction(() => {

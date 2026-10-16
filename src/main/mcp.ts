@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { z } from 'zod'
-import { commitMessage, reasoningLevelsFor, type Task } from '@shared/types'
+import { TASK_TYPES, commitMessage, reasoningLevelsFor, type Task } from '@shared/types'
 import { detectAgents } from './agents'
 import * as db from './db'
 import { answersDir, listFiles, outputsDir, resourcesDir, workspaceDir } from './storage'
@@ -51,6 +51,7 @@ function taskDependencies(task: Task) {
     return {
       code,
       title: dep?.title,
+      type: dep?.type,
       prompt: dep?.prompt,
       summary: dep?.summary,
       commit: dep?.commitHash ? { hash: dep.commitHash, message: commitMessage(dep) } : null,
@@ -69,7 +70,9 @@ async function taskCreationOptions(parent: Task) {
   const tasks = db.listTasks(parent.projectId).filter((t) => t.status !== 'Cancelled')
   return {
     project: { name: project?.name, path: project?.path, isGitRepo: project?.isGitRepo ?? false },
+    types: TASK_TYPES,
     defaults: {
+      type: 'Feature',
       agent: parent.agent,
       model: null,
       reasoning_effort: null,
@@ -97,6 +100,7 @@ async function taskCreationOptions(parent: Task) {
     tasks: tasks.map((t) => ({
       code: t.code,
       title: t.title,
+      type: t.type,
       status: t.status,
       canBeDependency: t.status === 'Done',
       canBlock: true
@@ -130,6 +134,7 @@ function buildServer(): McpServer {
           {
             code: task.code,
             title: task.title,
+            type: task.type,
             status: task.status,
             projectPath: project?.path,
             prompt: task.prompt,
@@ -267,6 +272,7 @@ function buildServer(): McpServer {
         task_code: z
           .string()
           .describe('Code of the task you are executing, e.g. DK-0001. The new task is created in its project and the creation is logged in its history.'),
+        type: z.enum(TASK_TYPES).default('Feature').describe('Task type: Bug, Feature, Documentation, Planning or Analysis. Defaults to Feature.'),
         title: z
           .string()
           .trim()
@@ -345,6 +351,7 @@ function buildServer(): McpServer {
         task = db.createTask({
           projectId: parent.projectId,
           title: input.title,
+          type: input.type,
           prompt: input.prompt,
           agent,
           model,
@@ -365,6 +372,7 @@ function buildServer(): McpServer {
           {
             code: task.code,
             title: task.title,
+            type: task.type,
             status: task.status,
             agent: task.agent,
             model: task.model,

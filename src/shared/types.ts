@@ -72,7 +72,11 @@ export interface Project {
   createdAt: string
 }
 
+export const TASK_TYPES = ['Bug', 'Feature', 'Documentation', 'Planning', 'Analysis'] as const
+export type TaskType = (typeof TASK_TYPES)[number]
+
 export interface Task {
+  type: TaskType
   code: string
   projectId: number
   title: string
@@ -200,6 +204,7 @@ export interface NewProject {
 }
 
 export interface NewTask {
+  type?: TaskType
   projectId: number
   title: string
   prompt: string
@@ -213,6 +218,7 @@ export interface NewTask {
 }
 
 export interface TaskUpdate {
+  type?: TaskType
   title?: string
   prompt?: string
   agent?: AgentId
