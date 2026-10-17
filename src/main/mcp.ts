@@ -272,7 +272,7 @@ function buildServer(): McpServer {
         task_code: z
           .string()
           .describe('Code of the task you are executing, e.g. DK-0001. The new task is created in its project and the creation is logged in its history.'),
-        type: z.enum(TASK_TYPES).default('Feature').describe('Task type: Bug, Feature, Documentation, Planning, Analysis or Refactor. Defaults to Feature.'),
+        type: z.enum(TASK_TYPES).default('Feature').describe('Task type: Bug, Feature, Documentation, Planning, Analysis, Refactor or Review. Defaults to Feature.'),
         title: z
           .string()
           .trim()
