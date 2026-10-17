@@ -19,19 +19,19 @@ interface Props {
 /** Searchable task cards, rendered in pages as the list scrolls. */
 export default function TaskList({ tasks, selectedCode, onSelect }: Props) {
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<TaskStatus | ''>('')
+  const [statuses, setStatuses] = useState<TaskStatus[]>([])
   const [limit, setLimit] = useState(PAGE_SIZE)
   const sentinel = useRef<HTMLDivElement>(null)
 
   const filtered = useMemo(() => {
     const words = normalize(query).split(/\s+/).filter(Boolean)
-    if (words.length === 0 && !status) return tasks
+    if (words.length === 0 && statuses.length === 0) return tasks
     return tasks.filter((t) => {
-      if (status && t.status !== status) return false
+      if (statuses.length > 0 && !statuses.includes(t.status)) return false
       const haystack = normalize(`${t.title}\n${t.prompt}`)
       return words.every((w) => haystack.includes(w))
     })
-  }, [tasks, query, status])
+  }, [tasks, query, statuses])
 
   const counts = useMemo(() => {
     const byStatus = {} as Record<TaskStatus, number>
@@ -41,7 +41,7 @@ export default function TaskList({ tasks, selectedCode, onSelect }: Props) {
   }, [tasks])
 
   // Start from the first page whenever the search or filter changes.
-  useEffect(() => setLimit(PAGE_SIZE), [query, status])
+  useEffect(() => setLimit(PAGE_SIZE), [query, statuses])
 
   const hasMore = filtered.length > limit
 
@@ -68,15 +68,8 @@ export default function TaskList({ tasks, selectedCode, onSelect }: Props) {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
         />
-        <select value={status} onChange={(e) => setStatus(e.target.value as TaskStatus | '')}>
-          <option value="">Todos los estados</option>
-          {TASK_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {STATUS_LABELS[s]} ({counts[s]})
-            </option>
-          ))}
-        </select>
-        {(query || status) && (
+        <StatusFilter selected={statuses} counts={counts} onChange={setStatuses} />
+        {(query || statuses.length > 0) && (
           <span className="muted small">
             {filtered.length} de {tasks.length}
           </span>
@@ -119,10 +112,82 @@ export default function TaskList({ tasks, selectedCode, onSelect }: Props) {
           <p className="muted">
             Ninguna tarea coincide
             {query && <> con «{query}»</>}
-            {status && <> en estado {STATUS_LABELS[status]}</>}.
+            {statuses.length === 1 && <> en estado {STATUS_LABELS[statuses[0]]}</>}
+            {statuses.length > 1 && <> en los estados seleccionados</>}.
           </p>
         )
       )}
     </>
+  )
+}
+
+interface StatusFilterProps {
+  selected: TaskStatus[]
+  counts: Record<TaskStatus, number>
+  onChange: (statuses: TaskStatus[]) => void
+}
+
+/** Dropdown with a checkbox per status; an empty selection means every status. */
+function StatusFilter({ selected, counts, onChange }: StatusFilterProps) {
+  const [open, setOpen] = useState(false)
+  const root = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onPointer = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    document.addEventListener('pointerdown', onPointer)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  function toggle(status: TaskStatus) {
+    // Keep the canonical status order regardless of click order.
+    const next = selected.includes(status)
+      ? selected.filter((s) => s !== status)
+      : TASK_STATUSES.filter((s) => s === status || selected.includes(s))
+    onChange(next)
+  }
+
+  const label =
+    selected.length === 0
+      ? 'Todos los estados'
+      : selected.length === 1
+        ? STATUS_LABELS[selected[0]]
+        : `${selected.length} estados`
+
+  return (
+    <div className="status-filter" ref={root}>
+      <button
+        type="button"
+        className={`status-filter-toggle${selected.length > 0 ? ' filtering' : ''}`}
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {label} <span aria-hidden="true">▾</span>
+      </button>
+      {open && (
+        <div className="status-filter-menu" role="group" aria-label="Filtrar por estado">
+          {TASK_STATUSES.map((s) => (
+            <label key={s} className="status-filter-option">
+              <input type="checkbox" checked={selected.includes(s)} onChange={() => toggle(s)} />
+              <span className={`badge badge-${s}`}>{STATUS_LABELS[s]}</span>
+              <span className="muted small">{counts[s]}</span>
+            </label>
+          ))}
+          <div className="status-filter-actions">
+            <button type="button" disabled={selected.length === 0} onClick={() => onChange([])}>
+              Limpiar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
