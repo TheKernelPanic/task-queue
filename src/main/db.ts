@@ -136,10 +136,42 @@ export function openDatabase(file: string): void {
   addColumn('task_procedures', 'snapshot_title', 'TEXT')
   addColumn('task_procedures', 'snapshot_prompt', 'TEXT')
   addColumn('task_procedures', 'snapshot_at', 'TEXT')
-  addColumn('tasks', 'type', "TEXT NOT NULL DEFAULT 'Feature' CHECK (type IN ('Bug', 'Feature', 'Documentation', 'Planning', 'Analysis'))")
+  addColumn('tasks', 'type', `TEXT NOT NULL DEFAULT 'Feature' ${TASK_TYPE_CHECK}`)
+  syncTaskTypeCheck()
   addColumn('tasks', 'model', 'TEXT')
   addColumn('tasks', 'auto_commit', 'INTEGER NOT NULL DEFAULT 1')
   addColumn('tasks', 'reasoning_effort', 'TEXT')
+}
+
+const TASK_TYPE_CHECK = `CHECK (type IN (${TASK_TYPES.map((t) => `'${t}'`).join(', ')}))`
+
+/**
+ * SQLite cannot alter a CHECK constraint, so when TASK_TYPES changes the tasks table is
+ * rebuilt from its own schema with the new constraint (keeping column order and rows).
+ */
+function syncTaskTypeCheck(): void {
+  const { sql } = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'tasks'").get() as {
+    sql: string
+  }
+  if (sql.includes(TASK_TYPE_CHECK)) return
+  const rebuilt = sql
+    .replace(/CHECK \(type IN \([^)]*\)\)/, TASK_TYPE_CHECK)
+    .replace(/^CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?tasks["`]?/i, 'CREATE TABLE tasks_new')
+  // Foreign keys must be off while the table is swapped, or dropping it would cascade.
+  db.exec('PRAGMA foreign_keys = OFF')
+  try {
+    transaction(() => {
+      db.exec(rebuilt)
+      db.exec('INSERT INTO tasks_new SELECT * FROM tasks')
+      db.exec('DROP TABLE tasks')
+      db.exec('ALTER TABLE tasks_new RENAME TO tasks')
+      if (db.prepare('PRAGMA foreign_key_check').all().length > 0) {
+        throw new Error('Foreign key check failed while migrating task types')
+      }
+    })
+  } finally {
+    db.exec('PRAGMA foreign_keys = ON')
+  }
 }
 
 function addColumn(table: string, column: string, definition: string): void {

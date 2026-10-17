@@ -72,7 +72,7 @@ export interface Project {
   createdAt: string
 }
 
-export const TASK_TYPES = ['Bug', 'Feature', 'Documentation', 'Planning', 'Analysis'] as const
+export const TASK_TYPES = ['Bug', 'Feature', 'Documentation', 'Planning', 'Analysis', 'Refactor'] as const
 export type TaskType = (typeof TASK_TYPES)[number]
 
 export interface Task {

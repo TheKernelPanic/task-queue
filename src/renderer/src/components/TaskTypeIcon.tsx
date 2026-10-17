@@ -5,7 +5,8 @@ const ICONS: Record<TaskType, string> = {
   Feature: '✨',
   Documentation: '📄',
   Planning: '📋',
-  Analysis: '🔍'
+  Analysis: '🔍',
+  Refactor: '🔧'
 }
 
 export default function TaskTypeIcon({ type }: { type: TaskType }) {

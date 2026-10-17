@@ -93,6 +93,7 @@ function registerIpc(): void {
   ipcMain.handle('tasks:update', (_e, code: string, patch: TaskUpdate) => {
     editableTask(code)
     return db.patchTask(code, {
+      type: patch.type,
       title: patch.title,
       prompt: patch.prompt,
       agent: patch.agent,

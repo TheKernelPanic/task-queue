@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { TASK_STATUSES, type Task, type TaskStatus } from '@shared/types'
+import { TASK_STATUSES, TASK_TYPES, type Task, type TaskStatus, type TaskType } from '@shared/types'
 import TaskTypeIcon from './TaskTypeIcon'
 import StatusBadge, { STATUS_LABELS } from './StatusBadge'
 
@@ -20,28 +20,27 @@ interface Props {
 export default function TaskList({ tasks, selectedCode, onSelect }: Props) {
   const [query, setQuery] = useState('')
   const [statuses, setStatuses] = useState<TaskStatus[]>([])
+  const [types, setTypes] = useState<TaskType[]>([])
   const [limit, setLimit] = useState(PAGE_SIZE)
   const sentinel = useRef<HTMLDivElement>(null)
 
   const filtered = useMemo(() => {
     const words = normalize(query).split(/\s+/).filter(Boolean)
-    if (words.length === 0 && statuses.length === 0) return tasks
+    if (words.length === 0 && statuses.length === 0 && types.length === 0) return tasks
     return tasks.filter((t) => {
       if (statuses.length > 0 && !statuses.includes(t.status)) return false
+      if (types.length > 0 && !types.includes(t.type)) return false
       const haystack = normalize(`${t.title}\n${t.prompt}`)
       return words.every((w) => haystack.includes(w))
     })
-  }, [tasks, query, statuses])
+  }, [tasks, query, statuses, types])
 
-  const counts = useMemo(() => {
-    const byStatus = {} as Record<TaskStatus, number>
-    for (const s of TASK_STATUSES) byStatus[s] = 0
-    for (const t of tasks) byStatus[t.status]++
-    return byStatus
-  }, [tasks])
+  const statusCounts = useMemo(() => countBy(tasks, TASK_STATUSES, (t) => t.status), [tasks])
+  const typeCounts = useMemo(() => countBy(tasks, TASK_TYPES, (t) => t.type), [tasks])
+  const filtering = query !== '' || statuses.length > 0 || types.length > 0
 
   // Start from the first page whenever the search or filter changes.
-  useEffect(() => setLimit(PAGE_SIZE), [query, statuses])
+  useEffect(() => setLimit(PAGE_SIZE), [query, statuses, types])
 
   const hasMore = filtered.length > limit
 
@@ -68,8 +67,34 @@ export default function TaskList({ tasks, selectedCode, onSelect }: Props) {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
         />
-        <StatusFilter selected={statuses} counts={counts} onChange={setStatuses} />
-        {(query || statuses.length > 0) && (
+        <MultiFilter
+          options={TASK_STATUSES}
+          selected={statuses}
+          counts={statusCounts}
+          onChange={setStatuses}
+          allLabel="Todos los estados"
+          pluralLabel="estados"
+          ariaLabel="Filtrar por estado"
+          label={(s) => STATUS_LABELS[s]}
+          renderOption={(s) => <span className={`badge badge-${s}`}>{STATUS_LABELS[s]}</span>}
+        />
+        <MultiFilter
+          options={TASK_TYPES}
+          selected={types}
+          counts={typeCounts}
+          onChange={setTypes}
+          allLabel="Todos los tipos"
+          pluralLabel="tipos"
+          ariaLabel="Filtrar por tipo"
+          label={(t) => t}
+          renderOption={(t) => (
+            <span className="multi-filter-type">
+              <TaskTypeIcon type={t} />
+              {t}
+            </span>
+          )}
+        />
+        {filtering && (
           <span className="muted small">
             {filtered.length} de {tasks.length}
           </span>
@@ -113,7 +138,9 @@ export default function TaskList({ tasks, selectedCode, onSelect }: Props) {
             Ninguna tarea coincide
             {query && <> con «{query}»</>}
             {statuses.length === 1 && <> en estado {STATUS_LABELS[statuses[0]]}</>}
-            {statuses.length > 1 && <> en los estados seleccionados</>}.
+            {statuses.length > 1 && <> en los estados seleccionados</>}
+            {types.length === 1 && <> de tipo {types[0]}</>}
+            {types.length > 1 && <> de los tipos seleccionados</>}.
           </p>
         )
       )}
@@ -121,14 +148,39 @@ export default function TaskList({ tasks, selectedCode, onSelect }: Props) {
   )
 }
 
-interface StatusFilterProps {
-  selected: TaskStatus[]
-  counts: Record<TaskStatus, number>
-  onChange: (statuses: TaskStatus[]) => void
+function countBy<K extends string>(tasks: Task[], keys: readonly K[], key: (t: Task) => K): Record<K, number> {
+  const counts = {} as Record<K, number>
+  for (const k of keys) counts[k] = 0
+  for (const t of tasks) counts[key(t)]++
+  return counts
 }
 
-/** Dropdown with a checkbox per status; an empty selection means every status. */
-function StatusFilter({ selected, counts, onChange }: StatusFilterProps) {
+interface MultiFilterProps<T extends string> {
+  options: readonly T[]
+  selected: T[]
+  counts: Record<T, number>
+  onChange: (selected: T[]) => void
+  /** Button text when nothing is selected. */
+  allLabel: string
+  /** Noun used in "N <pluralLabel>" when several are selected. */
+  pluralLabel: string
+  ariaLabel: string
+  label: (value: T) => string
+  renderOption: (value: T) => React.ReactNode
+}
+
+/** Dropdown with a checkbox per option; an empty selection means every option. */
+function MultiFilter<T extends string>({
+  options,
+  selected,
+  counts,
+  onChange,
+  allLabel,
+  pluralLabel,
+  ariaLabel,
+  label,
+  renderOption
+}: MultiFilterProps<T>) {
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
 
@@ -146,42 +198,42 @@ function StatusFilter({ selected, counts, onChange }: StatusFilterProps) {
     }
   }, [open])
 
-  function toggle(status: TaskStatus) {
-    // Keep the canonical status order regardless of click order.
-    const next = selected.includes(status)
-      ? selected.filter((s) => s !== status)
-      : TASK_STATUSES.filter((s) => s === status || selected.includes(s))
+  function toggle(value: T) {
+    // Keep the canonical option order regardless of click order.
+    const next = selected.includes(value)
+      ? selected.filter((v) => v !== value)
+      : options.filter((v) => v === value || selected.includes(v))
     onChange(next)
   }
 
-  const label =
+  const text =
     selected.length === 0
-      ? 'Todos los estados'
+      ? allLabel
       : selected.length === 1
-        ? STATUS_LABELS[selected[0]]
-        : `${selected.length} estados`
+        ? label(selected[0])
+        : `${selected.length} ${pluralLabel}`
 
   return (
-    <div className="status-filter" ref={root}>
+    <div className="multi-filter" ref={root}>
       <button
         type="button"
-        className={`status-filter-toggle${selected.length > 0 ? ' filtering' : ''}`}
+        className={`multi-filter-toggle${selected.length > 0 ? ' filtering' : ''}`}
         aria-haspopup="true"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
-        {label} <span aria-hidden="true">▾</span>
+        {text} <span aria-hidden="true">▾</span>
       </button>
       {open && (
-        <div className="status-filter-menu" role="group" aria-label="Filtrar por estado">
-          {TASK_STATUSES.map((s) => (
-            <label key={s} className="status-filter-option">
-              <input type="checkbox" checked={selected.includes(s)} onChange={() => toggle(s)} />
-              <span className={`badge badge-${s}`}>{STATUS_LABELS[s]}</span>
-              <span className="muted small">{counts[s]}</span>
+        <div className="multi-filter-menu" role="group" aria-label={ariaLabel}>
+          {options.map((v) => (
+            <label key={v} className="multi-filter-option">
+              <input type="checkbox" checked={selected.includes(v)} onChange={() => toggle(v)} />
+              {renderOption(v)}
+              <span className="muted small">{counts[v]}</span>
             </label>
           ))}
-          <div className="status-filter-actions">
+          <div className="multi-filter-actions">
             <button type="button" disabled={selected.length === 0} onClick={() => onChange([])}>
               Limpiar
             </button>
