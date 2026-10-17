@@ -61,12 +61,15 @@ export default function TaskList({ tasks, selectedCode, onSelect }: Props) {
     <>
       <div className="task-search">
         <input
+          className="task-search-input"
+          aria-label="Buscar tareas por título y prompt"
           type="search"
           placeholder="Buscar en título y prompt…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
         />
+        <div className="task-filter-row">
         <MultiFilter
           options={TASK_STATUSES}
           selected={statuses}
@@ -94,10 +97,14 @@ export default function TaskList({ tasks, selectedCode, onSelect }: Props) {
             </span>
           )}
         />
+        </div>
         {filtering && (
-          <span className="muted small">
+          <div className="task-filter-summary">
+          <span className="muted small" role="status">
             {filtered.length} de {tasks.length}
           </span>
+          <button type="button" onClick={() => { setQuery(''); setStatuses([]); setTypes([]) }}>Limpiar filtros</button>
+          </div>
         )}
       </div>
       {filtered.length > 0 && (
@@ -222,12 +229,17 @@ function MultiFilter<T extends string>({
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
-        {text} <span aria-hidden="true">▾</span>
+        <span className="multi-filter-value">
+          <span className="multi-filter-caption">{pluralLabel === 'estados' ? 'Estado' : 'Tipo'}</span>
+          <span className="multi-filter-selection">{text}</span>
+        </span>
+        {selected.length > 0 && <span className="multi-filter-count">{selected.length}</span>}
+        <span className="multi-filter-chevron" aria-hidden="true">▾</span>
       </button>
       {open && (
         <div className="multi-filter-menu" role="group" aria-label={ariaLabel}>
           {options.map((v) => (
-            <label key={v} className="multi-filter-option">
+            <label key={v} className={`multi-filter-option${selected.includes(v) ? ' selected' : ''}`}>
               <input type="checkbox" checked={selected.includes(v)} onChange={() => toggle(v)} />
               {renderOption(v)}
               <span className="muted small">{counts[v]}</span>
